@@ -5,40 +5,40 @@ import com.example.afinal.data.model.Story
 object MockData {
     private val stories = listOf(
         Story(
-            id = "dinhdoclap",
-            title = "Dinh Độc Lập: Tiếng vọng lịch sử",
-            description = "Một câu chuyện audio về những sự kiện đã diễn ra tại đây...",
-            audioUrl = "http://example.com/audio/dinhdoclap.mp3",
-            locationName = "Dinh Độc Lập",
-            latitude = 10.7769,
-            longitude = 106.7009
+            id = "hcmus",
+            title = "Trường Đại học Khoa học tự nhiên: Hình thành và phát triển",
+            description = "Description...",
+            audioUrl = "http://example.com/audio/hcmus.mp3",
+            locationName = "Trường Đại học Khoa học tự nhiên",
+            latitude = 10.763046391320858,
+            longitude = 106.68245020890055
         ),
         Story(
-            id = "nhathoducba",
-            title = "Nhà thờ Đức Bà: Dấu ấn vượt thời gian",
-            description = "Lắng nghe lịch sử của một trong những biểu tượng Sài Gòn.",
-            audioUrl = "http://example.com/audio/nhathoducba.mp3",
-            locationName = "Nhà thờ Đức Bà Sài Gòn",
-            latitude = 10.7797,
-            longitude = 106.6994
+            id = "fitus",
+            title = "Khoa Công nghệ thông tin",
+            description = "Description...",
+            audioUrl = "http://example.com/audio/fitus.mp3",
+            locationName = "Văn phòng khoa Công nghệ thông tin",
+            latitude = 10.762589158993256,
+            longitude = 106.68244896076847
         ),
         Story(
-            id = "buudienthanhpho",
-            title = "Bưu điện Thành phố: Nét duyên Đông Dương",
-            description = "Khám phá kiến trúc độc đáo của bưu điện lịch sử này.",
-            audioUrl = "http://example.com/audio/buudien.mp3",
-            locationName = "Bưu điện Trung tâm Sài Gòn",
-            latitude = 10.7801,
-            longitude = 106.6999
+            id = "thuvien",
+            title = "Thư viện tầng 10",
+            description = "description...",
+            audioUrl = "http://example.com/audio/thuvien.mp3",
+            locationName = "Thư viện tầng 10",
+            latitude = 10.762592134278984,
+            longitude = 106.68237592089505
         ),
         Story(
-            id = "chobenthanh",
-            title = "Chợ Bến Thành: Nhịp đập thành phố",
-            description = "Trải nghiệm âm thanh và cuộc sống sôi động của ngôi chợ hơn 100 tuổi.",
-            audioUrl = "http://example.com/audio/chobenthanh.mp3",
-            locationName = "Chợ Bến Thành",
-            latitude = 10.7725,
-            longitude = 106.6980
+            id = "trungtamtinhoc",
+            title = "Trung tâm tin học Đại học Khoa học tự nhiên",
+            description = "Description...",
+            audioUrl = "http://example.com/audio/trungtamtinhoc.mp3",
+            locationName = "Trung tâm tin học",
+            latitude = 10.762920466971467,
+            longitude = 106.68223594801846
         )
     )
 
