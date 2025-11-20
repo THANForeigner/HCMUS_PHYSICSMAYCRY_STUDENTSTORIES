@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ object Routes {
     const val MAP = "map"
     const val AUDIOS = "audios"
     const val USER = "user"
+    const val BAROMETER = "barometer"
     const val  AUDIO_PLAYER = "audio_player"
     const val ARG_STORY_ID = "storyID"
 }
@@ -85,6 +87,7 @@ fun MainAppScreen(mainNavController: NavHostController) {
             composable(Routes.MAP) { MapScreen(navController = mainNavController) }
             composable(Routes.AUDIOS) { AudiosScreen(navController = mainNavController) }
             composable(Routes.USER) { UserScreen(mainNavController = mainNavController) }
+            composable(Routes.BAROMETER) { BarometerScreen() }
         }
     }
 }
@@ -95,7 +98,8 @@ fun BottomNavigationBar(navController: NavController) {
         BottomNavItem("Home", Routes.HOME, Icons.Default.Home),
         BottomNavItem("Map", Routes.MAP, Icons.Default.Map),
         BottomNavItem("Audio", Routes.AUDIOS, Icons.Default.Headphones),
-        BottomNavItem("User", Routes.USER, Icons.Default.Person)
+        BottomNavItem("User", Routes.USER, Icons.Default.Person),
+        BottomNavItem("Barometer", Routes.BAROMETER, Icons.Default.Thermostat)
     )
 
     NavigationBar {
