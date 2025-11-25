@@ -4,10 +4,10 @@ import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.example.afinal.data.model.LocationModel
 import com.example.afinal.data.model.StoryModel
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.toObjects
+import com.google.firebase.firestore.FirebaseFirestore
+import com.example.afinal.data.model.LocationModel
 
 class StoryViewModel : ViewModel() {
     private val _locations = mutableStateOf<List<LocationModel>>(emptyList())
@@ -46,6 +46,36 @@ class StoryViewModel : ViewModel() {
             }
             .addOnFailureListener {
                 _currentStories.value = emptyList()
+            }
+    }
+
+    fun fetchLocationsForGeofence(){
+        val db = FirebaseFirestore.getInstance()
+        db.collectionGroup("coordinate")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val fetchedLocations = mutableListOf<LocationModel>()
+                for (document in snapshot.documents) {
+                    val lat = document.getDouble("latitude")
+                    val lng = document.getDouble("longitude")
+                    val buildingDoc = document.reference.parent.parent
+                    val buildingName = buildingDoc?.id ?: "Unknown Location"
+                    if (lat != null && lng != null) {
+                        fetchedLocations.add(
+                            LocationModel(
+                                id = buildingName,
+                                locationName = buildingName,
+                                latitude = lat,
+                                longitude = lng,
+                            )
+                        )
+                    }
+                }
+                _locations.value = fetchedLocations
+                Log.d("Firestore", "Loaded ${fetchedLocations.size} locations from nested structure")
+            }
+            .addOnFailureListener { e ->
+                Log.e("Firestore", "Error loading nested locations", e)
             }
     }
 }

@@ -10,6 +10,7 @@ import com.example.afinal.LocationGPS
 import com.example.afinal.LocationViewModel
 import com.example.afinal.StoryViewModel
 import com.example.afinal.navigation.Routes // <-- Đã thêm import này
+import com.example.afinal.utils.GeofenceHelper
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -27,7 +28,7 @@ fun MapScreen(navController: NavController) {
     // SỬA: Dùng .locations (số nhiều) thay vì .location
     val locations = storyViewModel.locations.value
     val myLocation = locationViewModel.location.value
-
+    val geofenceHelper = remember { GeofenceHelper(context) }
     // Logic lấy GPS
     val myLocationUtils = remember { LocationGPS(context) }
     LaunchedEffect(Unit) {
@@ -38,6 +39,18 @@ fun MapScreen(navController: NavController) {
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(10.762622, 106.660172), 14f)
+    }
+
+    LaunchedEffect(locations) {
+        if (locations.isNotEmpty()) {
+            // Đảm bảo bạn đã check quyền ACCESS_FINE_LOCATION và ACCESS_BACKGROUND_LOCATION
+            // trước khi gọi hàm này để tránh crash
+            try {
+                geofenceHelper.addGeofences(locations)
+            } catch (e: SecurityException) {
+                // Xử lý nếu chưa cấp quyền
+            }
+        }
     }
 
     LaunchedEffect(myLocation) {

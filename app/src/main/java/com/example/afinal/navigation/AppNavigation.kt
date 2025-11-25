@@ -1,5 +1,6 @@
 package com.example.afinal.navigation
 
+import android.content.Intent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headphones
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -36,9 +38,22 @@ object Routes {
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(startIntent: Intent? = null) {
     val navController = rememberNavController()
-
+    val notificationStoryId = startIntent?.getStringExtra("notification_story_id")
+    val startDest = if (notificationStoryId != null) {
+        // Nếu có ID, ta sẽ xử lý navigate ở trong LaunchedEffect bên dưới
+        Routes.MAIN_APP
+    } else {
+        Routes.LOGIN
+    }
+    LaunchedEffect(notificationStoryId) {
+        if (notificationStoryId != null) {
+            // Mở thẳng vào Main App rồi vào Player
+            navController.navigate(Routes.MAIN_APP)
+            navController.navigate("${Routes.AUDIO_PLAYER}/$notificationStoryId")
+        }
+    }
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
         composable(Routes.LOGIN) {
             LoginScreen(navController = navController)
