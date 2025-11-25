@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.afinal.StoryViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +30,9 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
     val context = LocalContext.current
 
     var isPlaying by remember { mutableStateOf(false) }
+    // NEW: Track if player is ready to prevent seeking/playing in wrong state
+    var isAudioReady by remember { mutableStateOf(false) }
+
     var currentPosition by remember { mutableLongStateOf(0L) }
     var totalDuration by remember { mutableLongStateOf(0L) }
 
@@ -36,15 +41,21 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
     LaunchedEffect(story) {
         if (story != null && story.playableUrl.isNotEmpty()) {
             try {
+                isAudioReady = false // Reset ready state
                 mediaPlayer.reset()
                 mediaPlayer.setDataSource(story.playableUrl)
-                mediaPlayer.prepareAsync()
+                mediaPlayer.prepareAsync() // Async preparation
+
                 mediaPlayer.setOnPreparedListener { mp ->
+                    isAudioReady = true // Mark as ready
                     totalDuration = mp.duration.toLong()
                 }
+
                 mediaPlayer.setOnCompletionListener {
                     isPlaying = false
+                    // seekTo is valid here because playback just completed
                     it.seekTo(0)
+                    currentPosition = 0
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error loading audio", Toast.LENGTH_SHORT).show()
@@ -53,13 +64,24 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
     }
 
     DisposableEffect(Unit) {
-        onDispose { mediaPlayer.release() }
+        onDispose {
+            if (mediaPlayer.isPlaying) {
+                mediaPlayer.stop()
+            }
+            mediaPlayer.release()
+        }
     }
 
-    LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            currentPosition = mediaPlayer.currentPosition.toLong()
-            kotlinx.coroutines.delay(500)
+    // Update slider (Only run if playing AND ready)
+    LaunchedEffect(isPlaying, isAudioReady) {
+        while (isPlaying && isAudioReady) {
+            try {
+                currentPosition = mediaPlayer.currentPosition.toLong()
+            } catch (e: IllegalStateException) {
+                // Ignore errors if player state changes unexpectedly
+                isPlaying = false
+            }
+            delay(500)
         }
     }
 
@@ -95,12 +117,16 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
 
                 Spacer(modifier = Modifier.weight(1f))
 
+                // Slider
                 Slider(
                     value = if (totalDuration > 0) currentPosition.toFloat() / totalDuration else 0f,
+                    enabled = isAudioReady, // Disable dragging until ready
                     onValueChange = { newPercent ->
-                        val newPosition = (newPercent * totalDuration).toLong()
-                        currentPosition = newPosition
-                        mediaPlayer.seekTo(newPosition.toInt())
+                        if (isAudioReady) {
+                            val newPosition = (newPercent * totalDuration).toLong()
+                            currentPosition = newPosition
+                            mediaPlayer.seekTo(newPosition.toInt())
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -115,21 +141,30 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
 
                 IconButton(
                     onClick = {
-                        if (isPlaying) {
-                            mediaPlayer.pause()
-                            isPlaying = false
-                        } else {
-                            mediaPlayer.start()
-                            isPlaying = true
+                        if (isAudioReady) {
+                            if (isPlaying) {
+                                mediaPlayer.pause()
+                                isPlaying = false
+                            } else {
+                                mediaPlayer.start()
+                                isPlaying = true
+                            }
                         }
                     },
+                    // Disable button if audio isn't loaded yet
+                    enabled = isAudioReady,
                     modifier = Modifier.size(80.dp)
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = "Play/Pause",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        tint = if (isAudioReady) MaterialTheme.colorScheme.primary else Color.Gray
                     )
+                }
+
+                if (!isAudioReady) {
+                    Text("Loading audio...", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
             }
         }
@@ -137,6 +172,7 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
 }
 
 fun formatTime(ms: Long): String {
+    if (ms <= 0) return "00:00"
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60

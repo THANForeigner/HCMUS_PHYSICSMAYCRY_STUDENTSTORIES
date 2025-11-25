@@ -3,16 +3,22 @@ package com.example.afinal.ui.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Landscape
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayCircleOutline
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -21,44 +27,133 @@ import com.example.afinal.navigation.Routes
 
 @Composable
 fun AudiosScreen(navController: NavController) {
-    // Use the ViewModel
     val storyViewModel: StoryViewModel = viewModel()
-    // Observe the list of all stories fetched from Firebase
-    val allStories by storyViewModel.allStories
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        item {
-            Text("All stories", style = MaterialTheme.typography.headlineSmall)
-            Spacer(modifier = Modifier.height(16.dp))
+    val currentLocationId by storyViewModel.currentLocationId
+    val currentLocation by storyViewModel.currentLocation
+    val isIndoor by storyViewModel.isIndoor
+    val currentFloor by storyViewModel.currentFloor
+    val currentStories by storyViewModel.currentStories
+
+    // Logic: Show Floor Button IF (Sensor says Indoor AND Building supports Floors)
+    val showFloorButton = isIndoor && (currentLocation?.type == "indoor")
+    var showFloorMenu by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // 1. Header
+            Text(
+                text = "Stories",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(16.dp)
+            )
+
+            // 2. Content Area
+            if (currentLocationId == null) {
+                // LOCKED STATE: User is not in any geofence
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Landscape, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Go to a location to see stories", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
+                    }
+                }
+            } else {
+                // UNLOCKED STATE: User is in geofence
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (isIndoor) Icons.Default.Business else Icons.Default.Landscape,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isIndoor) "Inside: $currentLocationId" else "Near: $currentLocationId",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (isIndoor && showFloorButton) {
+                            Text("Floor $currentFloor", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
+                ) {
+                    items(currentStories) { story ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            onClick = {
+                                navController.navigate("${Routes.AUDIO_PLAYER}/${story.id}")
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(story.title, style = MaterialTheme.typography.titleMedium)
+                                    Text(story.description, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                }
+                                Icon(Icons.Default.PlayCircleOutline, contentDescription = "Play")
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        items(allStories) { story ->
-            Card(
+        // --- Floor Button (Bottom Right) ---
+        // Only show if we are inside an indoor location
+        if (currentLocationId != null && showFloorButton) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                onClick = {
-                    navController.navigate("${Routes.AUDIO_PLAYER}/${story.id}")
-                }
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                FloatingActionButton(
+                    onClick = { showFloorMenu = true },
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(story.title, style = MaterialTheme.typography.titleMedium)
-                        // Show the extracted location name (e.g., "Building_I")
-                        Text(story.locationName, style = MaterialTheme.typography.bodySmall)
+                    Row(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Icon(Icons.Default.Layers, contentDescription = "Change Floor")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Floor $currentFloor")
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Icon(Icons.Default.PlayCircleOutline, contentDescription = "Play")
+                }
+
+                DropdownMenu(
+                    expanded = showFloorMenu,
+                    onDismissRequest = { showFloorMenu = false }
+                ) {
+                    listOf(1, 2).forEach { floor ->
+                        DropdownMenuItem(
+                            text = { Text("Floor $floor") },
+                            onClick = {
+                                storyViewModel.setCurrentFloor(floor)
+                                showFloorMenu = false
+                            },
+                            leadingIcon = {
+                                if (floor == currentFloor) {
+                                    Icon(Icons.Default.PlayCircleOutline, contentDescription = null)
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

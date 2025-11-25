@@ -2,6 +2,7 @@ package com.example.afinal
 
 import android.util.Log
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,129 +16,170 @@ import kotlinx.coroutines.tasks.await
 class StoryViewModel : ViewModel() {
     private val _locations = mutableStateOf<List<LocationModel>>(emptyList())
     val locations: State<List<LocationModel>> = _locations
-
     private val _currentStories = mutableStateOf<List<StoryModel>>(emptyList())
     val currentStories: State<List<StoryModel>> = _currentStories
     private val _allStories = mutableStateOf<List<StoryModel>>(emptyList())
     val allStories: State<List<StoryModel>> = _allStories
-
+    private val _isIndoor = mutableStateOf(false)
+    val isIndoor: State<Boolean> = _isIndoor
+    private val _currentFloor = mutableStateOf(1)
+    val currentFloor: State<Int> = _currentFloor
+    private val _currentLocationId = mutableStateOf<String?>(null)
+    val currentLocationId: State<String?> = _currentLocationId
+    val currentLocation = derivedStateOf {
+        _locations.value.find { it.id == _currentLocationId.value }
+    }
     init {
         fetchLocations()
         fetchAllStories()
     }
-
     fun getStory(id: String): StoryModel? {
-        return _allStories.value.find { it.id == id } ?: _allStories.value.find { it.id == id }
+        return _currentStories.value.find { it.id == id }
+            ?: _allStories.value.find { it.id == id }
+    }
+    fun setIndoorStatus(isIndoor: Boolean) {
+        _isIndoor.value = isIndoor
+    }
+    fun setCurrentFloor(floor: Int) {
+        _currentFloor.value = floor
+        _currentLocationId.value?.let { locId ->
+            fetchStoriesForLocation(locId, floor)
+        }
+    }
+    fun clearLocation() {
+        if (_currentLocationId.value != null) {
+            _currentLocationId.value = null
+            _currentStories.value = emptyList()
+            _isIndoor.value = false
+        }
     }
     private fun fetchLocations() {
         viewModelScope.launch {
             val db = FirebaseFirestore.getInstance()
             val loadedLocations = mutableListOf<LocationModel>()
             val rootRef = db.collection("locations").document("locations")
-            val collectionsToFetch = listOf("indoor_locations", "outdoor_locations")
+            val collectionsMap = mapOf(
+                "indoor_locations" to "indoor",
+                "outdoor_locations" to "outdoor"
+            )
 
             try {
-                for (collectionName in collectionsToFetch) {
+                for ((collectionName, type) in collectionsMap) {
                     val snapshot = rootRef.collection(collectionName).get().await()
                     for (document in snapshot.documents) {
                         val lat = document.getDouble("latitude")
                         val lng = document.getDouble("longitude")
-
                         if (lat != null && lng != null) {
                             loadedLocations.add(
                                 LocationModel(
                                     id = document.id,
                                     locationName = document.id,
                                     latitude = lat,
-                                    longitude = lng
+                                    longitude = lng,
+                                    type = type
                                 )
                             )
-                        } else {
-                            Log.w("Firestore", "Missing coordinates for ${document.id}")
                         }
                     }
                 }
                 _locations.value = loadedLocations
-                Log.d("Firestore", "Loaded ${loadedLocations.size} locations")
-
             } catch (e: Exception) {
                 Log.e("Firestore", "Error fetching locations", e)
             }
         }
     }
-
-    private fun fetchAllStories(){
+    private fun fetchAllStories() {
         val db = FirebaseFirestore.getInstance()
-        val storage = FirebaseStorage.getInstance()
         db.collectionGroup("posts").get()
-            .addOnSuccessListener{snapshot ->
-                val storiesLists = mutableListOf<StoryModel>()
-                if(snapshot.isEmpty) return@addOnSuccessListener
-                var processedCount = 0
-                for(doc in snapshot.documents){
-                    val story = doc.toObject(StoryModel::class.java)?.copy(id = doc.id)
-                    val pathSegments = doc.reference.path.split("/")
-                    if(pathSegments.size>3){
-                        story?.locationName = pathSegments[3]
-                    }
-                    if(story!=null && story.audioUrl.startsWith("gs://")) {
-                        storage.getReferenceFromUrl(story.audioUrl).downloadUrl.addOnSuccessListener { uri ->
-                            story.playableUrl = uri.toString()
-                            processedCount++
-                            if (processedCount == snapshot.size()) _allStories.value = storiesLists
-                        }.addOnFailureListener {
-                            Log.e("Storage", "Failed to resolve URL for ${story.title}")
-                            processedCount++
-                            if (processedCount == snapshot.size()) _allStories.value = storiesLists
-                        }
-                    } else if (story != null) {
-                        story.playableUrl = story.audioUrl
-                        storiesLists.add(story)
-                        processedCount++
-                        if (processedCount == snapshot.size()) _allStories.value = storiesLists
-                    }
-                    }
+            .addOnSuccessListener { snapshot ->
+                processSnapshot(snapshot.documents, null, isAllStories = true)
+            }
+            .addOnFailureListener {
+                Log.e("Firestore", "Error fetching all stories", it)
             }
     }
 
-    fun fetchStoriesForLocation(locationId: String) {
+    fun fetchStoriesForLocation(locationId: String, floor: Int = 1) {
+        if (_currentLocationId.value == locationId && _currentFloor.value == floor && _currentStories.value.isNotEmpty()) {
+            return
+        }
+        _currentLocationId.value = locationId
         val db = FirebaseFirestore.getInstance()
-        val storage = FirebaseStorage.getInstance()
-
-        db.collectionGroup("posts").get()
-            .addOnSuccessListener { snapshot ->
-                val storiesList = mutableListOf<StoryModel>()
-                val matches = snapshot.documents.filter { it.reference.path.contains(locationId) }
-
-                if (matches.isEmpty()) {
-                    _currentStories.value = emptyList()
-                    return@addOnSuccessListener
-                }
-
-                var processedCount = 0
-                for (doc in matches) {
-                    val story = doc.toObject(StoryModel::class.java)?.copy(id = doc.id)
-                    story?.locationName = locationId // We know the location for these
-
-                    if (story != null && story.audioUrl.startsWith("gs://")) {
-                        storage.getReferenceFromUrl(story.audioUrl).downloadUrl
-                            .addOnSuccessListener { uri ->
-                                story.playableUrl = uri.toString()
-                                storiesList.add(story)
-                                processedCount++
-                                if (processedCount == matches.size) _currentStories.value = storiesList
-                            }
-                            .addOnFailureListener {
-                                processedCount++
-                                if (processedCount == matches.size) _currentStories.value = storiesList
-                            }
-                    } else if (story != null) {
-                        story.playableUrl = story.audioUrl
-                        storiesList.add(story)
-                        processedCount++
-                        if (processedCount == matches.size) _currentStories.value = storiesList
-                    }
-                }
+        val locationType = _locations.value.find { it.id == locationId }?.type ?: "outdoor"
+        val query = if (locationType == "indoor") {
+            db.collection("locations").document("locations")
+                .collection("indoor_locations").document(locationId)
+                .collection("floor").document(floor.toString())
+                .collection("posts")
+        } else {
+            null
+        }
+        if (query != null) {
+            query.get().addOnSuccessListener { snapshot ->
+                processSnapshot(snapshot.documents, locationId, isAllStories = false)
             }
+        } else {
+            db.collectionGroup("posts").get().addOnSuccessListener { snapshot ->
+                val matches = snapshot.documents.filter { doc ->
+                    doc.reference.path.contains(locationId)
+                }
+                processSnapshot(matches, locationId, isAllStories = false)
+            }
+        }
+    }
+    private fun processSnapshot(
+        documents: List<com.google.firebase.firestore.DocumentSnapshot>,
+        locationId: String?,
+        isAllStories: Boolean
+    ) {
+        val storage = FirebaseStorage.getInstance()
+        val storiesList = mutableListOf<StoryModel>()
+
+        if (documents.isEmpty()) {
+            if (isAllStories) _allStories.value = emptyList() else _currentStories.value = emptyList()
+            return
+        }
+
+        var processedCount = 0
+        val total = documents.size
+
+        fun checkDone() {
+            processedCount++
+            if (processedCount == total) {
+                if (isAllStories) _allStories.value = storiesList else _currentStories.value = storiesList
+            }
+        }
+
+        for (doc in documents) {
+            val extractedLoc = locationId ?: doc.reference.path.split("/").getOrNull(3) ?: ""
+            val story = try {
+                doc.toObject(StoryModel::class.java)?.copy(id = doc.id, locationName = extractedLoc)
+            } catch (e: Exception) { null }
+
+            if (story == null) {
+                checkDone()
+                continue
+            }
+
+            if (story.audioUrl.startsWith("gs://")) {
+                try {
+                    storage.getReferenceFromUrl(story.audioUrl).downloadUrl
+                        .addOnSuccessListener { uri ->
+                            story.playableUrl = uri.toString()
+                            storiesList.add(story)
+                            checkDone()
+                        }
+                        .addOnFailureListener {
+                            checkDone()
+                        }
+                } catch (e: Exception) {
+                    checkDone()
+                }
+            } else {
+                story.playableUrl = story.audioUrl
+                storiesList.add(story)
+                checkDone()
+            }
+        }
     }
 }

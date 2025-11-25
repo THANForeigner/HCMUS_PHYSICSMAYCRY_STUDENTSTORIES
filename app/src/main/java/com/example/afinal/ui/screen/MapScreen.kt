@@ -18,6 +18,7 @@ import com.example.afinal.LocationViewModel
 import com.example.afinal.StoryViewModel
 import com.example.afinal.navigation.Routes
 import com.example.afinal.utils.GeofenceHelper
+import com.example.afinal.utils.IndoorDetector
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -27,6 +28,7 @@ import com.google.maps.android.compose.*
 fun MapScreen(navController: NavController) {
     val context = LocalContext.current
     val locationViewModel: LocationViewModel = viewModel()
+    // Ensure we use the SAME ViewModel instance (scoped to NavGraph typically, but here implicitly activity if not scoped)
     val storyViewModel: StoryViewModel = viewModel()
 
     val locations by storyViewModel.locations
@@ -34,11 +36,11 @@ fun MapScreen(navController: NavController) {
 
     val geofenceHelper = remember { GeofenceHelper(context) }
     val myLocationUtils = remember { LocationGPS(context) }
+    val indoorDetector = remember { IndoorDetector(context) }
 
-    // School Center (VNUHCM)
     val schoolCenter = LatLng(10.762867, 106.682496)
 
-    // Passive Permission Check
+    // Permissions Check
     val hasForegroundPermission = ContextCompat.checkSelfPermission(
         context, Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
@@ -47,26 +49,50 @@ fun MapScreen(navController: NavController) {
         ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-    } else {
-        true
+    } else { true }
+
+    // 1. Start GPS
+    LaunchedEffect(hasForegroundPermission) {
+        if (hasForegroundPermission) myLocationUtils.requestLocationUpdate(locationViewModel)
     }
 
-    // GPS Updates (only if allowed)
-    LaunchedEffect(hasForegroundPermission) {
-        if (hasForegroundPermission) {
-            myLocationUtils.requestLocationUpdate(locationViewModel)
+    // 2. Indoor Detection Flow
+    // We assume that if SNR is low -> Indoor.
+    // We only care if we are also NEAR a building.
+    LaunchedEffect(Unit) {
+        if (hasForegroundPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            indoorDetector.observeIndoorStatus().collect { isIndoor ->
+                storyViewModel.setIndoorStatus(isIndoor)
+            }
         }
     }
 
-    // Geofencing (only if allowed & near school)
+    // 3. Geofencing & Proximity Logic
     LaunchedEffect(myLocation, locations, hasBackgroundPermission) {
         if (locations.isNotEmpty() && myLocation != null && hasBackgroundPermission) {
             val results = FloatArray(1)
-            Location.distanceBetween(
-                myLocation.latitude, myLocation.longitude,
-                schoolCenter.latitude, schoolCenter.longitude,
-                results
-            )
+
+            // Check closest building
+            var closestLoc: String? = null
+            var minDist = Float.MAX_VALUE
+
+            locations.forEach { loc ->
+                Location.distanceBetween(myLocation.latitude, myLocation.longitude, loc.latitude, loc.longitude, results)
+                if (results[0] < minDist) {
+                    minDist = results[0]
+                    closestLoc = loc.id
+                }
+            }
+
+            // If very close (< 10m), auto-set location in ViewModel
+            if (minDist < 10 && closestLoc != null) {
+                storyViewModel.fetchStoriesForLocation(closestLoc!!)
+            } else {
+                storyViewModel.clearLocation()
+            }
+
+            // Add Geofences if near school center
+            Location.distanceBetween(myLocation.latitude, myLocation.longitude, schoolCenter.latitude, schoolCenter.longitude, results)
             if (results[0] < 500) {
                 geofenceHelper.addGeofences(locations)
             } else {
@@ -86,7 +112,6 @@ fun MapScreen(navController: NavController) {
             properties = MapProperties(isMyLocationEnabled = hasForegroundPermission)
         ) {
             locations.forEach { loc ->
-                // Debug Circle
                 Circle(
                     center = LatLng(loc.latitude, loc.longitude),
                     radius = GeofenceHelper.GEOFENCE_RADIUS.toDouble(),
@@ -97,9 +122,12 @@ fun MapScreen(navController: NavController) {
                 Marker(
                     state = MarkerState(position = LatLng(loc.latitude, loc.longitude)),
                     title = loc.locationName,
-                    snippet = "Tap to view posts",
+                    snippet = "Tap to see ${loc.type} stories",
                     onClick = {
-                        navController.navigate("${Routes.AUDIO_PLAYER}/${loc.id}")
+                        // Load data for this location
+                        storyViewModel.fetchStoriesForLocation(loc.id)
+                        // Navigate to List Screen (AudioScreen) instead of Player
+                        navController.navigate(Routes.AUDIOS)
                         false
                     }
                 )

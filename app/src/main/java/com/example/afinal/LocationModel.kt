@@ -7,5 +7,6 @@ data class LocationModel(
     val id: String = "", // ID của document cha (ví dụ: b9d6...)
     val locationName: String = "",
     val latitude: Double = 0.0,
-    val longitude: Double = 0.0
+    val longitude: Double = 0.0,
+    val type: String = "outdoor"
 )
