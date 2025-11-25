@@ -26,8 +26,7 @@ import com.example.afinal.StoryViewModel
 import com.example.afinal.navigation.Routes
 
 @Composable
-fun AudiosScreen(navController: NavController) {
-    val storyViewModel: StoryViewModel = viewModel()
+fun AudiosScreen(navController: NavController, storyViewModel: StoryViewModel) {
 
     val currentLocationId by storyViewModel.currentLocationId
     val currentLocation by storyViewModel.currentLocation

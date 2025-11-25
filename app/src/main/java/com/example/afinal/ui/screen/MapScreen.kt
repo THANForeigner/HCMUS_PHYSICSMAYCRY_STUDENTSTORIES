@@ -11,6 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.afinal.LocationGPS
@@ -25,11 +28,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 
 @Composable
-fun MapScreen(navController: NavController) {
+fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val locationViewModel: LocationViewModel = viewModel()
-    // Ensure we use the SAME ViewModel instance (scoped to NavGraph typically, but here implicitly activity if not scoped)
-    val storyViewModel: StoryViewModel = viewModel()
 
     val locations by storyViewModel.locations
     val myLocation = locationViewModel.location.value
@@ -41,15 +43,27 @@ fun MapScreen(navController: NavController) {
     val schoolCenter = LatLng(10.762867, 106.682496)
 
     // Permissions Check
-    val hasForegroundPermission = ContextCompat.checkSelfPermission(
-        context, Manifest.permission.ACCESS_FINE_LOCATION
+    val hasForegroundPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
 
-    val hasBackgroundPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    } else { true }
+    var hasBackgroundPermission by remember { mutableStateOf(false) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasBackgroundPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    true
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // 1. Start GPS
     LaunchedEffect(hasForegroundPermission) {
@@ -67,36 +81,31 @@ fun MapScreen(navController: NavController) {
         }
     }
 
-    // 3. Geofencing & Proximity Logic
     LaunchedEffect(myLocation, locations, hasBackgroundPermission) {
-        if (locations.isNotEmpty() && myLocation != null && hasBackgroundPermission) {
+        if (locations.isNotEmpty() && myLocation != null) {
             val results = FloatArray(1)
-
-            // Check closest building
             var closestLoc: String? = null
             var minDist = Float.MAX_VALUE
 
             locations.forEach { loc ->
-                Location.distanceBetween(myLocation.latitude, myLocation.longitude, loc.latitude, loc.longitude, results)
+                Location.distanceBetween(myLocation!!.latitude, myLocation!!.longitude, loc.latitude, loc.longitude, results)
                 if (results[0] < minDist) {
                     minDist = results[0]
                     closestLoc = loc.id
                 }
             }
-
-            // If very close (< 10m), auto-set location in ViewModel
-            if (minDist < 10 && closestLoc != null) {
+            if (minDist < 20 && closestLoc != null) {
                 storyViewModel.fetchStoriesForLocation(closestLoc!!)
             } else {
                 storyViewModel.clearLocation()
             }
-
-            // Add Geofences if near school center
-            Location.distanceBetween(myLocation.latitude, myLocation.longitude, schoolCenter.latitude, schoolCenter.longitude, results)
-            if (results[0] < 500) {
-                geofenceHelper.addGeofences(locations)
-            } else {
-                geofenceHelper.removeGeofences()
+            if (hasBackgroundPermission) {
+                Location.distanceBetween(myLocation!!.latitude, myLocation!!.longitude, schoolCenter.latitude, schoolCenter.longitude, results)
+                if (results[0] < 500) {
+                    geofenceHelper.addGeofences(locations)
+                } else {
+                    geofenceHelper.removeGeofences()
+                }
             }
         }
     }

@@ -106,7 +106,7 @@ class StoryViewModel : ViewModel() {
         _currentLocationId.value = locationId
         val db = FirebaseFirestore.getInstance()
         val locationType = _locations.value.find { it.id == locationId }?.type ?: "outdoor"
-        val query = if (locationType == "indoor") {
+        var query = if (locationType == "indoor") {
             db.collection("locations").document("locations")
                 .collection("indoor_locations").document(locationId)
                 .collection("floor").document(floor.toString())
@@ -119,11 +119,11 @@ class StoryViewModel : ViewModel() {
                 processSnapshot(snapshot.documents, locationId, isAllStories = false)
             }
         } else {
-            db.collectionGroup("posts").get().addOnSuccessListener { snapshot ->
-                val matches = snapshot.documents.filter { doc ->
-                    doc.reference.path.contains(locationId)
-                }
-                processSnapshot(matches, locationId, isAllStories = false)
+             query = db.collection("locations").document("locations")
+                .collection("outdoor_locations").document(locationId)
+                .collection("posts")
+            query.get().addOnSuccessListener { snapshot ->
+                processSnapshot(snapshot.documents, locationId, isAllStories = false)
             }
         }
     }

@@ -23,6 +23,8 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.afinal.ui.screen.*
 import com.example.afinal.ui.theme.FINALTheme
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.afinal.StoryViewModel
 
 object Routes {
     const val LOGIN = "login"
@@ -87,7 +89,7 @@ fun AppNavigation(startIntent: Intent? = null) {
 @Composable
 fun MainAppScreen(mainNavController: NavHostController) {
     val bottomNavController = rememberNavController()
-
+    val storyViewModel: StoryViewModel = viewModel()
     Scaffold(
         bottomBar = {
             BottomNavigationBar(navController = bottomNavController)
@@ -99,8 +101,8 @@ fun MainAppScreen(mainNavController: NavHostController) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Routes.HOME) { HomeScreen(navController = mainNavController) }
-            composable(Routes.MAP) { MapScreen(navController = mainNavController) }
-            composable(Routes.AUDIOS) { AudiosScreen(navController = mainNavController) }
+            composable(Routes.MAP) { MapScreen(navController = mainNavController,storyViewModel = storyViewModel) }
+            composable(Routes.AUDIOS) { AudiosScreen(navController = mainNavController, storyViewModel = storyViewModel) }
             composable(Routes.USER) { UserScreen(mainNavController = mainNavController) }
             composable(Routes.BAROMETER) { BarometerScreen() }
         }
