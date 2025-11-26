@@ -1,12 +1,17 @@
 package com.example.afinal.ui.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -24,6 +29,23 @@ fun LoginScreen(navController: NavController) {
     val coroutineScope = rememberCoroutineScope()
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    val focusManager = LocalFocusManager.current
+    val passwordFocusRequester = remember { FocusRequester() }
+
+    fun performLogin() {
+        focusManager.clearFocus()
+        coroutineScope.launch {
+            val success = authViewModel.login(email, password)
+            if (success) {
+                navController.navigate(Routes.MAIN_APP) {
+                    popUpTo(Routes.LOGIN) { inclusive = true }
+                }
+            } else {
+                errorMessage = "Login failed. Please check your credentials."
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -34,6 +56,7 @@ fun LoginScreen(navController: NavController) {
         Text("Student Stories", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
 
+        // 3. Cấu hình ô Email
         OutlinedTextField(
             value = email,
             onValueChange = {
@@ -41,7 +64,14 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = null
             },
             label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { passwordFocusRequester.requestFocus() }
+            )
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -53,24 +83,21 @@ fun LoginScreen(navController: NavController) {
             },
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(passwordFocusRequester),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { performLogin() }
+            )
         )
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = {
-                coroutineScope.launch {
-                    val success = authViewModel.login(email, password)
-                    if (success) {
-                        navController.navigate(Routes.MAIN_APP) {
-                            popUpTo(Routes.LOGIN) { inclusive = true }
-                        }
-                    } else {
-                        errorMessage = "Login failed. Please check your credentials."
-                    }
-                }
-            },
+            onClick = { performLogin() },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Login")
