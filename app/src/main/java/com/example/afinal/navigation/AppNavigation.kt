@@ -38,6 +38,7 @@ object Routes {
     const val BAROMETER = "barometer"
     const val  AUDIO_PLAYER = "audio_player"
     const val ARG_STORY_ID = "storyID"
+    const val ADD_POST = "add_post"
 }
 
 @Composable
@@ -111,8 +112,9 @@ fun MainAppScreen(mainNavController: NavHostController) {
             composable(Routes.HOME) { HomeScreen(navController = mainNavController) }
             composable(Routes.MAP) { MapScreen(navController = mainNavController,storyViewModel = storyViewModel) }
             composable(Routes.AUDIOS) { AudiosScreen(navController = mainNavController, storyViewModel = storyViewModel) }
-            composable(Routes.USER) { UserScreen(mainNavController = mainNavController) }
+            composable(Routes.USER) { UserScreen(mainNavController = bottomNavController) }
             composable(Routes.BAROMETER) { BarometerScreen() }
+            composable(Routes.ADD_POST) { AddPostScreen() }
         }
     }
 }
