@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayCircleOutline
@@ -50,7 +51,7 @@ fun AudiosScreen(navController: NavController, storyViewModel: StoryViewModel) {
 
             // 2. Content Area
             if (currentLocationId == null) {
-                // LOCKED STATE: User is not in any geofence
+                // LOCKED STATE: User is not near any location
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -62,7 +63,7 @@ fun AudiosScreen(navController: NavController, storyViewModel: StoryViewModel) {
                     }
                 }
             } else {
-                // UNLOCKED STATE: User is in geofence
+                // UNLOCKED STATE: User is near a location
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -105,7 +106,7 @@ fun AudiosScreen(navController: NavController, storyViewModel: StoryViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(story.title, style = MaterialTheme.typography.titleMedium)
+                                    Text(story.name, style = MaterialTheme.typography.titleMedium)
                                     if (story.user.isNotEmpty()) {
                                         Text(
                                             text = "By: ${story.user}",
@@ -121,6 +122,13 @@ fun AudiosScreen(navController: NavController, storyViewModel: StoryViewModel) {
                     }
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = { navController.navigate(Routes.ADD_POST) },
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add Post")
         }
 
         // --- Floor Button (Bottom Right) ---

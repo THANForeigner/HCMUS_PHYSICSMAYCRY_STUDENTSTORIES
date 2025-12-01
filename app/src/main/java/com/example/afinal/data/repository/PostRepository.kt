@@ -3,6 +3,7 @@ package com.example.afinal.data.repository
 import android.net.Uri
 import com.example.afinal.data.model.Comment
 import com.example.afinal.data.model.PostModel
+import android.util.Log
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -19,16 +20,61 @@ class PostRepository {
     private val storage = FirebaseStorage.getInstance()
     private val postsCollection = db.collection("posts")
 
-    suspend fun addPost(post: PostModel, imageUris: List<Uri>, audioUri: Uri?): String {
-        val imageUrls = imageUris.map { uploadFile(it, "images") }
-        val audioUrl = audioUri?.let { uploadFile(it, "audio") }
+    suspend fun addPost(
+        post: PostModel,
+        imageUris: List<Uri>,
+        audioUri: Uri?,
+        isIndoor: Boolean?,
+        locationId: String?,
+        floor: Int?
+    ): String {
+        Log.d("PostRepository", "addPost called with post: $post, isIndoor: $isIndoor, locationId: $locationId, floor: $floor")
+
+        val locationType = when (isIndoor) {
+            true -> "indoor_locations"
+            false -> "outdoor_locations"
+            else -> null
+        }
+
+        val storagePath = if (locationType != null && locationId != null) {
+            if (isIndoor == true && floor != null) {
+                "locations/locations/$locationType/$locationId/floor/$floor"
+            } else {
+                "locations/locations/$locationType/$locationId"
+            }
+        } else {
+            "posts"
+        }
+
+        val imageUrls = imageUris.map { uploadFile(it, "$storagePath/images") }
+        Log.d("PostRepository", "imageUrls: $imageUrls")
+        val audioUrl = audioUri?.let { uploadFile(it, "$storagePath/audio") }
+        Log.d("PostRepository", "audioUrl: $audioUrl")
 
         val newPost = post.copy(
             pictures = imageUrls,
             audioUrl = audioUrl
         )
+        Log.d("PostRepository", "newPost: $newPost")
 
-        val documentReference = postsCollection.add(newPost).await()
+        val collection = if (locationType != null && locationId != null) {
+            val locationsRoot = db.collection("locations").document("locations")
+            if (isIndoor == true && floor != null) {
+                locationsRoot.collection(locationType)
+                    .document(locationId)
+                    .collection("floor").document(floor.toString())
+                    .collection("posts")
+            } else {
+                locationsRoot.collection(locationType)
+                    .document(locationId)
+                    .collection("posts")
+            }
+        } else {
+            postsCollection
+        }
+
+        val documentReference = collection.add(newPost).await()
+        Log.d("PostRepository", "documentReference id: ${documentReference.id}")
         return documentReference.id
     }
 

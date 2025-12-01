@@ -88,7 +88,7 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(story?.title ?: "Player") },
+                title = { Text(story?.name ?: "Player") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -109,7 +109,7 @@ fun AudioPlayerScreen(navController: NavController, storyId: String) {
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(story.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(story.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(story.locationName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 if (story.user.isNotEmpty()) {

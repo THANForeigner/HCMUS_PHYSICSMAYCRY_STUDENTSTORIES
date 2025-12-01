@@ -93,13 +93,15 @@ class StoryViewModel : ViewModel() {
     }
     private fun fetchAllStories() {
         val db = FirebaseFirestore.getInstance()
-        db.collectionGroup("posts").get()
-            .addOnSuccessListener { snapshot ->
-                processSnapshot(snapshot.documents, null, isAllStories = true)
+        db.collectionGroup("posts").addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                Log.e("Firestore", "Error fetching all stories", e)
+                return@addSnapshotListener
             }
-            .addOnFailureListener {
-                Log.e("Firestore", "Error fetching all stories", it)
+            snapshot?.let {
+                processSnapshot(it.documents, null, isAllStories = true)
             }
+        }
     }
 
     fun fetchStoriesForLocation(locationId: String, floor: Int = 1) {
@@ -110,30 +112,33 @@ class StoryViewModel : ViewModel() {
         _currentFloor.value = floor
         val db = FirebaseFirestore.getInstance()
         val locationType = _locations.value.find { it.id == locationId }?.type ?: "outdoor"
-        var query = if (locationType == "indoor") {
+        val query = if (locationType == "indoor") {
             db.collection("locations").document("locations")
                 .collection("indoor_locations").document(locationId)
                 .collection("floor").document(floor.toString())
                 .collection("posts")
         } else {
-            null
-        }
-        if (query != null) {
-            query.get().addOnSuccessListener { snapshot ->
-                processSnapshot(snapshot.documents, locationId, isAllStories = false)
-            }
-            _loadedFloor = floor
-            setIndoorStatus(true)
-        } else {
-             query = db.collection("locations").document("locations")
+            db.collection("locations").document("locations")
                 .collection("outdoor_locations").document(locationId)
                 .collection("posts")
-            query.get().addOnSuccessListener { snapshot ->
-                processSnapshot(snapshot.documents, locationId, isAllStories = false)
-            }
-            _loadedFloor = floor
-            setIndoorStatus(false)
         }
+
+        Log.d("StoryViewModel", "Fetching stories for location: $locationId, type: $locationType, query path: ${query.path}")
+
+        query.addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                Log.e("StoryViewModel", "Error fetching stories for location", e)
+                return@addSnapshotListener
+            }
+            if (snapshot == null) {
+                Log.e("StoryViewModel", "Snapshot is null for location: $locationId")
+                return@addSnapshotListener
+            }
+            Log.d("StoryViewModel", "Snapshot listener triggered for location: $locationId. Documents found: ${snapshot.documents.size}")
+            processSnapshot(snapshot.documents, locationId, isAllStories = false)
+        }
+        _loadedFloor = floor
+        setIndoorStatus(locationType == "indoor")
     }
     private fun processSnapshot(
         documents: List<com.google.firebase.firestore.DocumentSnapshot>,
@@ -143,8 +148,11 @@ class StoryViewModel : ViewModel() {
         val storage = FirebaseStorage.getInstance()
         val storiesList = mutableListOf<StoryModel>()
 
+        Log.d("StoryViewModel", "processSnapshot: received ${documents.size} documents. isAllStories: $isAllStories")
+
         if (documents.isEmpty()) {
             if (isAllStories) _allStories.value = emptyList() else _currentStories.value = emptyList()
+            Log.d("StoryViewModel", "processSnapshot: No documents, clearing list.")
             return
         }
 
@@ -154,7 +162,13 @@ class StoryViewModel : ViewModel() {
         fun checkDone() {
             processedCount++
             if (processedCount == total) {
-                if (isAllStories) _allStories.value = storiesList else _currentStories.value = storiesList
+                if (isAllStories) {
+                    _allStories.value = storiesList
+                    Log.d("StoryViewModel", "processSnapshot: Finished processing all stories. Total: ${storiesList.size}")
+                } else {
+                    _currentStories.value = storiesList
+                    Log.d("StoryViewModel", "processSnapshot: Finished processing stories for location. Total: ${storiesList.size}")
+                }
             }
         }
 
@@ -165,26 +179,30 @@ class StoryViewModel : ViewModel() {
             } catch (e: Exception) { null }
 
             if (story == null) {
+                Log.e("StoryViewModel", "processSnapshot: Failed to convert document to StoryModel. Doc ID: ${doc.id}")
                 checkDone()
                 continue
             }
 
-            if (story.audioUrl.startsWith("gs://")) {
+            if (story.audioUrl?.startsWith("gs://") == true) {
                 try {
                     storage.getReferenceFromUrl(story.audioUrl).downloadUrl
                         .addOnSuccessListener { uri ->
                             story.playableUrl = uri.toString()
                             storiesList.add(story)
+                            Log.d("StoryViewModel", "processSnapshot: Successfully fetched playable URL for ${story.id}")
                             checkDone()
                         }
-                        .addOnFailureListener {
+                        .addOnFailureListener { e ->
+                            Log.e("StoryViewModel", "processSnapshot: Failed to get download URL for ${story.id}", e)
                             checkDone()
                         }
                 } catch (e: Exception) {
+                    Log.e("StoryViewModel", "processSnapshot: Exception while getting download URL for ${story.id}", e)
                     checkDone()
                 }
             } else {
-                story.playableUrl = story.audioUrl
+                story.playableUrl = story.audioUrl ?: ""
                 storiesList.add(story)
                 checkDone()
             }

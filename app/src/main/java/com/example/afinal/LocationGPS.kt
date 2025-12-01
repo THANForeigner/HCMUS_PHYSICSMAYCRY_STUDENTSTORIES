@@ -23,6 +23,7 @@ class LocationGPS(val context: Context){
                 super.onLocationResult(locationResult)
                 locationResult.lastLocation?.let {
                     val location = LocationData(latitude = it.latitude, longitude = it.longitude)
+
                     viewModel.updateLocation(location)
                 }
             }

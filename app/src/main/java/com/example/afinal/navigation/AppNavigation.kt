@@ -24,6 +24,7 @@ import androidx.navigation.navArgument
 import com.example.afinal.ui.screen.*
 import com.example.afinal.ui.theme.FINALTheme
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.afinal.LocationViewModel
 import com.example.afinal.StoryViewModel
 import com.google.firebase.auth.FirebaseAuth
 
@@ -42,7 +43,11 @@ object Routes {
 }
 
 @Composable
-fun AppNavigation(startIntent: Intent? = null) {
+fun AppNavigation(
+    startIntent: Intent? = null,
+    locationViewModel: LocationViewModel,
+    storyViewModel: StoryViewModel
+) {
     val navController = rememberNavController()
     val notificationStoryId = startIntent?.getStringExtra("notification_story_id")
 
@@ -73,7 +78,10 @@ fun AppNavigation(startIntent: Intent? = null) {
             RegisterScreen(navController = navController)
         }
         composable(Routes.MAIN_APP) {
-            MainAppScreen(mainNavController = navController)
+            MainAppScreen(mainNavController = navController, locationViewModel = locationViewModel, storyViewModel = storyViewModel)
+        }
+        composable(Routes.ADD_POST) {
+            AddPostScreen(navController = navController, locationViewModel = locationViewModel, storyViewModel = storyViewModel)
         }
         composable(
             route = "${Routes.AUDIO_PLAYER}/{${Routes.ARG_STORY_ID}}",
@@ -96,9 +104,9 @@ fun AppNavigation(startIntent: Intent? = null) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppScreen(mainNavController: NavHostController) {
+fun MainAppScreen(mainNavController: NavHostController, locationViewModel: LocationViewModel, storyViewModel: StoryViewModel) {
     val bottomNavController = rememberNavController()
-    val storyViewModel: StoryViewModel = viewModel()
+    // val storyViewModel: StoryViewModel = viewModel() // This is now passed from above
     Scaffold(
         bottomBar = {
             BottomNavigationBar(navController = bottomNavController)
@@ -114,7 +122,6 @@ fun MainAppScreen(mainNavController: NavHostController) {
             composable(Routes.AUDIOS) { AudiosScreen(navController = mainNavController, storyViewModel = storyViewModel) }
             composable(Routes.USER) { UserScreen(mainNavController = bottomNavController) }
             composable(Routes.BAROMETER) { BarometerScreen() }
-            composable(Routes.ADD_POST) { AddPostScreen() }
         }
     }
 }
@@ -163,6 +170,6 @@ data class BottomNavItem(val title: String, val route: String, val icon: ImageVe
 @Composable
 fun PreviewMainAppScreen() {
     FINALTheme() {
-        MainAppScreen(mainNavController = rememberNavController())
+        MainAppScreen(mainNavController = rememberNavController(), locationViewModel = viewModel(), storyViewModel = viewModel())
     }
 }

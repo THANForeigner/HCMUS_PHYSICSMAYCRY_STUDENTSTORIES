@@ -20,12 +20,15 @@ class PostViewModel : ViewModel() {
     private val _reactions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val reactions: StateFlow<Map<String, Int>> = _reactions.asStateFlow()
 
-    fun addPost(post: PostModel, imageUris: List<Uri>, audioUri: Uri?): String {
-        var postId = ""
-        viewModelScope.launch {
-            postId = postRepository.addPost(post, imageUris, audioUri)
-        }
-        return postId
+    suspend fun addPost(
+        post: PostModel,
+        imageUris: List<Uri>,
+        audioUri: Uri?,
+        isIndoor: Boolean?,
+        locationId: String?,
+        floor: Int?
+    ): String {
+        return postRepository.addPost(post, imageUris, audioUri, isIndoor, locationId, floor)
     }
 
     fun loadComments(postId: String) {

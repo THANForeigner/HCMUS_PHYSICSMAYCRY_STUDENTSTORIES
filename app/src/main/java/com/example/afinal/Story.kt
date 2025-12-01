@@ -6,13 +6,14 @@ import com.google.firebase.firestore.PropertyName
 data class StoryModel(
     @DocumentId
     val id: String = "",
-    val title: String = "",
+    val name: String = "",
     val description: String = "",
     val user: String = "",
-    @PropertyName("audioURL")
-    val audioUrl: String = "",
+    @PropertyName("audioUrl")
+    val audioUrl: String? = null,
     val likes: Int = 0,
     val dislikes: Int = 0,
     var playableUrl: String = "",
-    var locationName: String = ""
+    var locationName: String = "",
+    val position: Position? = null
 )

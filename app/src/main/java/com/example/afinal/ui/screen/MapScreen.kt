@@ -36,9 +36,10 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
     val locations by storyViewModel.locations
     val myLocation = locationViewModel.location.value
 
-    val geofenceHelper = remember { GeofenceHelper(context) }
+
     val myLocationUtils = remember { LocationGPS(context) }
     val indoorDetector = remember { IndoorDetector(context) }
+    val geofenceHelper = remember { GeofenceHelper(context) }
 
     val schoolCenter = LatLng(10.762867, 106.682496)
 
@@ -123,7 +124,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
             locations.forEach { loc ->
                 Circle(
                     center = LatLng(loc.latitude, loc.longitude),
-                    radius = GeofenceHelper.GEOFENCE_RADIUS.toDouble(),
+                    radius = 10.0,
                     fillColor = Color(0x44FF0000),
                     strokeColor = Color.Red,
                     strokeWidth = 2f
