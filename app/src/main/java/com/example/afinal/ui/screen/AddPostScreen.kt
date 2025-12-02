@@ -35,7 +35,7 @@ fun AddPostScreen(
 ) {
   var name by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
-  var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+  var imageUri by remember { mutableStateOf<Uri?>(null) }
   var audioUri by remember { mutableStateOf<Uri?>(null) }
   var isLoading by remember { mutableStateOf(false) } // Loading state
   val coroutineScope = rememberCoroutineScope()
@@ -44,8 +44,8 @@ fun AddPostScreen(
 
   val imagePickerLauncher =
           rememberLauncherForActivityResult(
-                  contract = ActivityResultContracts.GetMultipleContents()
-          ) { uris: List<Uri> -> imageUris = uris }
+                  contract = ActivityResultContracts.GetContent()
+          ) { uri: Uri? -> imageUri = uri }
 
   val audioPickerLauncher =
           rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) {
@@ -63,9 +63,10 @@ fun AddPostScreen(
               label = { Text("Post Description") }
       )
       Spacer(modifier = Modifier.height(16.dp))
-      Button(onClick = { imagePickerLauncher.launch("image/*") }, enabled = !isLoading) {
-        Text("Select Images")
-      }
+      Button(
+              onClick = { imagePickerLauncher.launch("image/*") },
+              enabled = imageUri == null && !isLoading
+      ) { Text(if (imageUri == null) "Select Image" else "Image Selected") }
       Spacer(modifier = Modifier.height(16.dp))
       Button(
               onClick = { audioPickerLauncher.launch("audio/*") },
@@ -99,7 +100,7 @@ fun AddPostScreen(
                     val postId =
                             postViewModel.addPost(
                                     newPost,
-                                    imageUris,
+                                    imageUri?.let { listOf(it) } ?: emptyList(),
                                     audioUri,
                                     isIndoor,
                                     currentLocationId,
