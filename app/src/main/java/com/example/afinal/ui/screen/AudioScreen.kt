@@ -55,8 +55,12 @@ fun AudiosScreen(
     )
 
     // Update StoryViewModel with the Sensor Status
-    LaunchedEffect(isUserIndoor) {
-        storyViewModel.setIndoorStatus(isUserIndoor)
+    LaunchedEffect(isUserIndoor, currentLocation) {
+        if (currentLocation != null && currentLocation?.type == "outdoor") {
+            storyViewModel.setIndoorStatus(false)
+        } else {
+            storyViewModel.setIndoorStatus(isUserIndoor)
+        }
     }
 
     // 3. UI Layout
@@ -134,6 +138,34 @@ fun AudiosScreen(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
                 ) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            onClick = { navController.navigate(Routes.ADD_POST) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp) // Bo góc giống các item khác
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center // Căn giữa nội dung
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Story",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                        }
+                    }
+
                     items(currentStories) { story ->
                         Card(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -163,13 +195,6 @@ fun AudiosScreen(
                     }
                 }
             }
-        }
-
-        FloatingActionButton(
-            onClick = { navController.navigate(Routes.ADD_POST) },
-            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Add Post")
         }
 
         // Floor Button

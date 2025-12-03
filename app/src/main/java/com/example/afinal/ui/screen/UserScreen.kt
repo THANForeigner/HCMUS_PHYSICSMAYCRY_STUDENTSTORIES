@@ -37,14 +37,6 @@ fun UserScreen(mainNavController: NavController) {
     Spacer(modifier = Modifier.height(32.dp))
 
     Button(
-        onClick = { mainNavController.navigate(Routes.ADD_POST) }
-    ) {
-        Text("Add Post")
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    Button(
             onClick = {
               authViewModel.logout()
               mainNavController.navigate(Routes.LOGIN) {

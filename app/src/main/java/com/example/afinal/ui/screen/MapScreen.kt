@@ -132,15 +132,20 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
 
             // [CHANGE 2] Loop through locations but REMOVED the static geofence circles
             locations.forEach { loc ->
-                // REMOVED: Circle(...)
-
                 Marker(
                     state = MarkerState(position = LatLng(loc.latitude, loc.longitude)),
                     title = loc.locationName,
                     snippet = "Tap to see ${loc.type} stories",
                     onClick = {
                         storyViewModel.fetchStoriesForLocation(loc.id)
-                        navController.navigate(Routes.AUDIOS)
+
+                        navController.navigate(Routes.AUDIOS) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                         false
                     }
                 )

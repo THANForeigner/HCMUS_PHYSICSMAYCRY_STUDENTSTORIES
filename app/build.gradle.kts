@@ -87,4 +87,5 @@ dependencies {
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("androidx.compose.runtime:runtime-livedata:1.6.7")
     implementation("androidx.media:media:1.7.0")
+    implementation("io.coil-kt:coil-compose:2.4.0")
 }
