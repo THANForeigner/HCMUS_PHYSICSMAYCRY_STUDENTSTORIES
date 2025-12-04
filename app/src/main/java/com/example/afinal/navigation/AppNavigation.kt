@@ -53,7 +53,7 @@ fun AppNavigation(
     audioService: AudioPlayerService?,
     onStorySelected: (StoryModel) -> Unit
 ) {
-    // This key must match the one used in AudioPlayerService.sendDiscoveryNotification
+    // This key matches the one used in LocationReceiver.sendDiscoveryNotification
     val notificationStoryId = startIntent?.getStringExtra("notification_story_id")
 
     // Determine where to start based on Auth and Notifications
@@ -64,12 +64,12 @@ fun AppNavigation(
     }
 
     val finalStartDestination = if (notificationStoryId != null) {
-        Routes.MAIN_APP // If notification exists, load Main App first so back stack is correct
+        Routes.MAIN_APP // Load Main App first to ensure correct back stack
     } else {
         appStartDestination
     }
 
-    // Handle Deep Link from Notification
+    // Handle Deep Link from Notification (Discovery)
     LaunchedEffect(notificationStoryId) {
         if (notificationStoryId != null) {
             // Ensure we are in the main app, then push the player on top
@@ -95,6 +95,7 @@ fun AppNavigation(
             )
         }
         composable(Routes.ADD_POST) {
+            // Pass shared ViewModels to ensure we have the Location data
             AddPostScreen(
                 navController = navController,
                 locationViewModel = locationViewModel,
@@ -146,8 +147,8 @@ fun MainAppScreen(
                 MapScreen(navController = bottomNavController, storyViewModel = storyViewModel)
             }
 
-            // Updated to pass locationViewModel as required by the new logic
             composable(Routes.AUDIOS) {
+                // IMPORTANT: Pass the shared locationViewModel here
                 AudiosScreen(
                     navController = mainNavController,
                     storyViewModel = storyViewModel,

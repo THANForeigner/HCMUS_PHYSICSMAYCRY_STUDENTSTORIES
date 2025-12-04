@@ -1,6 +1,7 @@
 package com.example.afinal.logic
 
 import android.Manifest
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -9,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,6 +39,10 @@ import com.example.afinal.navigation.Routes
 import com.example.afinal.ui.screen.MiniPlayer
 import com.example.afinal.ui.theme.FINALTheme
 import com.example.afinal.logic.LocationGPS
+import com.example.afinal.ultis.LocationReceiver
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -115,7 +121,8 @@ class MainActivity : ComponentActivity() {
                         if (!hasAllPermissions) {
                             val permissionsToRequest = mutableListOf(
                                 Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                                Manifest.permission.POST_NOTIFICATIONS
                             )
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
@@ -126,6 +133,33 @@ class MainActivity : ComponentActivity() {
                             permissionLauncher.launch(permissionsToRequest.toTypedArray())
                         } else {
                             locationGPS.requestLocationUpdate(locationViewModel)
+                        }
+                    }
+                    LaunchedEffect(hasAllPermissions) {
+                        if (hasAllPermissions) {
+                            // A. Setup the Request
+                            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000) // 10 seconds
+                                .setMinUpdateDistanceMeters(10f)
+                                .build()
+
+                            // B. Create the PendingIntent that wakes up the Receiver
+                            val intent = Intent(context, LocationReceiver::class.java)
+                            val locationPendingIntent = PendingIntent.getBroadcast(
+                                context,
+                                0,
+                                intent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                            )
+
+                            // C. Request Updates (This persists even if app dies)
+                            // Make sure you check for permissions before calling this
+                            try {
+                                val client = LocationServices.getFusedLocationProviderClient(context)
+                                client.requestLocationUpdates(locationRequest, locationPendingIntent)
+                                Toast.makeText(context, "Tracking started (Background Enabled)", Toast.LENGTH_SHORT).show()
+                            } catch (e: SecurityException) {
+                                Log.e("MainActivity", "Permission missing", e)
+                            }
                         }
                     }
                     LaunchedEffect(Unit) {
@@ -147,17 +181,6 @@ class MainActivity : ComponentActivity() {
                                     backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                                 }
                             }
-                        }
-                    }
-                    LaunchedEffect(Unit) {
-                        val discoveryIntent = Intent(context, NotificationService::class.java).apply {
-                            action = NotificationService.ACTION_START_TRACKING
-                        }
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(discoveryIntent)
-                        } else {
-                            context.startService(discoveryIntent)
                         }
                     }
                     // --- 2. LOGIC AUDIO SERVICE & MINIPLAYER (PHẦN MỚI THÊM) ---

@@ -50,11 +50,10 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <service
-            android:name=".logic.NotificationService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="location" />
+        <receiver
+            android:name=".ultis.LocationReceiver"
+            android:exported="true"
+            android:enabled="true" />
 
     </application>
 

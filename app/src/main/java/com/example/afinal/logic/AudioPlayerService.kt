@@ -4,7 +4,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.media.MediaPlayer
 import android.os.Binder
 import android.os.Build
@@ -12,7 +14,7 @@ import android.os.IBinder
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
 import com.example.afinal.R
-import com.example.afinal.logic.NotificationService
+// REMOVED: import com.example.afinal.logic.NotificationService
 
 class AudioPlayerService : Service() {
 
@@ -38,7 +40,7 @@ class AudioPlayerService : Service() {
     companion object {
         const val ACTION_PLAY = "ACTION_PLAY"
         const val ACTION_PAUSE = "ACTION_PAUSE"
-        const val ACTION_RESUME = "ACTION_RESUME" // Explicit resume action
+        const val ACTION_RESUME = "ACTION_RESUME"
 
         const val EXTRA_AUDIO_URL = "EXTRA_AUDIO_URL"
         const val EXTRA_STORY_ID = "EXTRA_STORY_ID"
@@ -47,6 +49,7 @@ class AudioPlayerService : Service() {
         const val EXTRA_LOCATION = "EXTRA_LOCATION"
 
         const val CHANNEL_ID = "audio_playback_channel"
+        const val NOTIFICATION_ID = 101
     }
 
     override fun onCreate() {
@@ -58,7 +61,6 @@ class AudioPlayerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
 
-        // Update metadata if provided
         intent?.getStringExtra(EXTRA_TITLE)?.let { currentTitle = it }
         intent?.getStringExtra(EXTRA_USER)?.let { currentUser = it }
         intent?.getStringExtra(EXTRA_LOCATION)?.let { currentLocationName = it }
@@ -66,7 +68,7 @@ class AudioPlayerService : Service() {
 
         when (action) {
             ACTION_PLAY -> {
-                val url = intent.getStringExtra(EXTRA_AUDIO_URL)
+                val url = intent?.getStringExtra(EXTRA_AUDIO_URL)
                 if (url != null) playAudio(url) else resumeAudio()
             }
             ACTION_PAUSE -> pauseAudio()
@@ -90,8 +92,7 @@ class AudioPlayerService : Service() {
                 start()
                 this@AudioPlayerService.isPlaying = true
                 showPlayerNotification(true)
-                // CONNECTION: Start the Location Service when audio plays
-                startLocationService()
+                // REMOVED: startLocationService() call
             }
             setOnCompletionListener {
                 this@AudioPlayerService.isPlaying = false
@@ -104,33 +105,28 @@ class AudioPlayerService : Service() {
         mediaPlayer?.start()
         isPlaying = true
         showPlayerNotification(true)
-        startLocationService()
+        // REMOVED: startLocationService() call
     }
 
     fun pauseAudio() {
         mediaPlayer?.pause()
         isPlaying = false
         showPlayerNotification(false)
-        // Note: We might want to keep Location Service running even if paused,
-        // or stop it to save battery. For now, we leave it running.
     }
 
-    // --- Helper to start the other service ---
-    private fun startLocationService() {
-        val intent = Intent(this, NotificationService::class.java)
-        intent.action = NotificationService.ACTION_START_TRACKING
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-    }
+    // REMOVED: private fun startLocationService() { ... }
 
     private fun showPlayerNotification(isPlaying: Boolean) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         createChannel(manager)
 
-        // Intent to open UI
+        // 1. Cancel the "Discovery" notification if we are playing that story
+        // This ensures the user doesn't see "Found: Story X" while "Playing: Story X" is active
+        currentStoryId?.let { id ->
+            manager.cancel(id.hashCode())
+        }
+
+        // 2. Prepare Intents
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("notification_story_id", currentStoryId)
@@ -140,11 +136,13 @@ class AudioPlayerService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Intent for Play/Pause button
         val toggleIntent = Intent(this, AudioPlayerService::class.java).apply {
             action = if (isPlaying) ACTION_PAUSE else ACTION_RESUME
         }
-        val pendingToggle = PendingIntent.getService(this, 1, toggleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val pendingToggle = PendingIntent.getService(
+            this, 1, toggleIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val content = if (currentLocationName.isNotEmpty()) "$currentUser • $currentLocationName" else currentUser
 
@@ -161,10 +159,19 @@ class AudioPlayerService : Service() {
                 if (isPlaying) "Pause" else "Play",
                 pendingToggle
             )
-            .setOngoing(isPlaying) // Only ongoing if playing
+            .setOngoing(isPlaying)
             .build()
 
-        startForeground(101, notification)
+        // 3. Android 14 Foreground Service Type Fix
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun createChannel(manager: NotificationManager) {

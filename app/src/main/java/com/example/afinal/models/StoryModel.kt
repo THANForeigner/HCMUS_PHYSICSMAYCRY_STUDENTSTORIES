@@ -16,5 +16,7 @@ data class StoryModel(
     val dislikes: Int = 0,
     var playableUrl: String = "",
     var locationName: String = "",
-    val position: Position? = null
+    val position: Position? = null,
+    val pictures: List<String> = emptyList(),
+    val floor: Int = 1
 )
