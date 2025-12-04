@@ -5,7 +5,7 @@ import com.example.afinal.models.LocationModel
 
 object DistanceCalculator {
 
-    private const val DISCOVERY_THRESHOLD_METERS = 5.0f
+    private const val DISCOVERY_THRESHOLD_METERS = 3.0f
 
     /**
      * Calculates the distance in meters between two points.

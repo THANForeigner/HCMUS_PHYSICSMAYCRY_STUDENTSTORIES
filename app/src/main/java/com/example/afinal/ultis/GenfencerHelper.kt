@@ -75,7 +75,6 @@ class GeofenceHelper(context: Context) : ContextWrapper(context) {
     }
 
     companion object {
-        // UPDATED: Changed from 10f to 5f
-        const val GEOFENCE_RADIUS = 5f
+        const val GEOFENCE_RADIUS = 3f
     }
 }
