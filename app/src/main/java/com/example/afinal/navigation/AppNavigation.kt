@@ -21,12 +21,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.afinal.ui.screen.*
 import com.example.afinal.ui.theme.FINALTheme
-import androidx.lifecycle.viewmodel.compose.viewModel
-// Fixed imports (removed .models)
 import com.example.afinal.models.LocationViewModel
 import com.example.afinal.models.StoryViewModel
+import com.example.afinal.logic.AudioPlayerService
+import com.example.afinal.models.StoryModel
 import com.google.firebase.auth.FirebaseAuth
 
 object Routes {
@@ -45,11 +46,13 @@ object Routes {
 
 @Composable
 fun AppNavigation(
+    navController: NavHostController,
     startIntent: Intent? = null,
     locationViewModel: LocationViewModel,
-    storyViewModel: StoryViewModel
+    storyViewModel: StoryViewModel,
+    audioService: AudioPlayerService?,
+    onStorySelected: (StoryModel) -> Unit
 ) {
-    val navController = rememberNavController()
     // This key must match the one used in AudioPlayerService.sendDiscoveryNotification
     val notificationStoryId = startIntent?.getStringExtra("notification_story_id")
 
@@ -107,7 +110,9 @@ fun AppNavigation(
                 AudioPlayerScreen(
                     navController = navController,
                     storyId = storyId,
-                    storyViewModel = storyViewModel
+                    storyViewModel = storyViewModel,
+                    audioService = audioService,
+                    onStoryLoaded = onStorySelected
                 )
             } else {
                 navController.popBackStack()

@@ -1,18 +1,10 @@
 package com.example.afinal.ui.screen
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -24,12 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.afinal.logic.AudioPlayerService
+import com.example.afinal.models.StoryModel
 import com.example.afinal.models.StoryViewModel
 import kotlinx.coroutines.delay
 
@@ -38,75 +29,38 @@ import kotlinx.coroutines.delay
 fun AudioPlayerScreen(
     navController: NavController,
     storyId: String,
-    storyViewModel: StoryViewModel // Passed from AppNavigation
+    storyViewModel: StoryViewModel,
+    audioService: AudioPlayerService?,
+    onStoryLoaded: (StoryModel) -> Unit
 ) {
     val story = storyViewModel.getStory(storyId)
-    val context = LocalContext.current
 
-    // --- Service Connection State ---
-    var audioService by remember { mutableStateOf<AudioPlayerService?>(null) }
-    var isBound by remember { mutableStateOf(false) }
+    LaunchedEffect(story) {
+        story?.let { onStoryLoaded(it) }
+    }
 
-    // --- UI State synced with Service ---
+    // --- UI State ---
     var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var totalDuration by remember { mutableLongStateOf(0L) }
 
-    // 1. Bind to Service
-    val connection = remember {
-        object : ServiceConnection {
-            override fun onServiceConnected(className: ComponentName, service: IBinder) {
-                val binder = service as AudioPlayerService.LocalBinder
-                audioService = binder.getService()
-                isBound = true
+    LaunchedEffect(audioService, story) {
+        if (audioService != null && story != null) {
+            if (audioService.currentAudioUrl != story.playableUrl) {
+                audioService.updateMetadata(story.name, story.user, story.locationName, story.id)
+                audioService.playAudio(story.playableUrl)
             }
-
-            override fun onServiceDisconnected(arg0: ComponentName) {
-                isBound = false
-                audioService = null
-            }
+            isPlaying = audioService.isPlaying
+            totalDuration = audioService.getDuration()
         }
     }
 
-    DisposableEffect(Unit) {
-        val intent = Intent(context, AudioPlayerService::class.java)
-        // Start service first (to ensure it stays alive if we unbind)
-        context.startService(intent)
-        context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-
-        onDispose {
-            if (isBound) {
-                context.unbindService(connection)
-                isBound = false
-            }
-        }
-    }
-
-    // 2. Initial Play & Metadata Update
-    LaunchedEffect(isBound, story) {
-        if (isBound && story != null && audioService != null) {
-            val service = audioService!!
-
-            // Check if we need to start a new song
-            if (service.currentAudioUrl != story.playableUrl) {
-                service.updateMetadata(story.name, story.user, story.locationName, story.id)
-                service.playAudio(story.playableUrl)
-            } else {
-                // If already playing this song, just sync state
-                isPlaying = service.isPlaying
-                totalDuration = service.getDuration()
-            }
-        }
-    }
-
-    // 3. Sync Loop (Polls service for progress)
-    LaunchedEffect(isBound, audioService) {
-        while (isBound && audioService != null) {
-            val service = audioService!!
-            isPlaying = service.isPlaying
-            currentPosition = service.getCurrentPosition()
-            totalDuration = service.getDuration()
-            delay(500) // Update slider every 500ms
+    LaunchedEffect(audioService) {
+        while (audioService != null) {
+            isPlaying = audioService.isPlaying
+            currentPosition = audioService.getCurrentPosition()
+            totalDuration = audioService.getDuration()
+            delay(500)
         }
     }
 
@@ -118,7 +72,7 @@ fun AudioPlayerScreen(
                 title = { Text("Now Playing", style = MaterialTheme.typography.titleSmall) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -141,7 +95,6 @@ fun AudioPlayerScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
                         .aspectRatio(1f)
                         .shadow(12.dp, RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)),
@@ -160,41 +113,12 @@ fun AudioPlayerScreen(
                 // 2. TEXT INFO
                 Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
                     Text(story.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text(if (story.user.isNotEmpty()) story.user else "Unknown", style = MaterialTheme.typography.titleMedium)
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Text(
-                            story.locationName,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
+                    Text(story.user, style = MaterialTheme.typography.titleMedium)
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-                // 3. DESCRIPTION
-                Box(
-                    modifier = Modifier
-                        .height(80.dp)
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = story.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.verticalScroll(rememberScrollState())
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 4. SLIDER
+                // 3. SLIDER
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Slider(
                         value = if (totalDuration > 0) currentPosition.toFloat() / totalDuration else 0f,
@@ -216,7 +140,7 @@ fun AudioPlayerScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 5. CONTROLS
+                // 4. CONTROLS
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -248,7 +172,6 @@ fun AudioPlayerScreen(
     }
 }
 
-// Hàm formatTime giữ nguyên
 fun formatTime(ms: Long): String {
     if (ms <= 0) return "00:00"
     val totalSeconds = ms / 1000
