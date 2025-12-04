@@ -123,7 +123,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
             myLocation?.let { userLoc ->
                 Circle(
                     center = LatLng(userLoc.latitude, userLoc.longitude),
-                    radius = 10.0, // Requested 10m radius
+                    radius = 3.0, // Requested 10m radius
                     fillColor = Color(0x220000FF), // Light Blue transparent fill
                     strokeColor = Color.Blue,      // Solid Blue border
                     strokeWidth = 2f

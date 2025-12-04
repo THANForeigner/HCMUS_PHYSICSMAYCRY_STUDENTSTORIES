@@ -1,15 +1,15 @@
 package com.example.afinal.ultis
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import com.example.afinal.models.StoryViewModel
 import com.example.afinal.models.LocationModel
 import com.example.afinal.data.LocationData
-import com.example.afinal.ultis.DistanceCalculator
 
 /**
  * Handles the logic for detecting nearby locations and triggering audio fetches.
- * This separates the "Side Effects" from the UI code.
+ * Implements "Handover & Lock" logic for smoother Indoor/Outdoor transitions.
  */
 @Composable
 fun FetchAudio(
@@ -24,29 +24,69 @@ fun FetchAudio(
         val userLoc = userLocation
 
         // Safety check: ensure we have data
-        if (userLoc != null && allLocations.isNotEmpty()) {
+        if (allLocations.isEmpty()) return@LaunchedEffect
 
-            // Check if we are currently pinned to a valid indoor location
-            val isCurrentlyInsideBuilding = currentLocationId != null &&
-                    allLocations.find { it.id == currentLocationId }?.type == "indoor"
+        // 1. ANALYZE CURRENT STATE
+        val currentLocModel = allLocations.find { it.id == currentLocationId }
+        val isCurrentlyPinnedIndoor = currentLocModel?.type == "indoor"
 
-            // If we are indoors and pinned, stop looking for new places (stable state)
-            if (isUserIndoor && isCurrentlyInsideBuilding) {
-                return@LaunchedEffect
+        // 2. INDOOR LOCK: If we are physically indoors AND validly pinned to an indoor ID
+        if (isUserIndoor && isCurrentlyPinnedIndoor) {
+            // STOP PROCESSING. We are locked to this building.
+            // We ignore GPS updates here to prevent "drift" or clearing the list.
+            Log.d("FetchAudio", "Indoor Locked: Staying at $currentLocationId")
+            return@LaunchedEffect
+        }
+
+        // 3. HANDOVER: Transitioning from Outdoor -> Indoor
+        // If the detector says "Indoor" but we are currently at an "Outdoor" location (or null)
+        if (isUserIndoor && !isCurrentlyPinnedIndoor) {
+            // Strategy: Don't trust the User's GPS (it might be weak/drifting).
+            // Instead, trust the LAST KNOWN LOCATION (currentLocModel).
+            // Find the nearest "Indoor" version of where we just were.
+
+            val referenceLat = currentLocModel?.latitude ?: userLoc?.latitude
+            val referenceLng = currentLocModel?.longitude ?: userLoc?.longitude
+
+            if (referenceLat != null && referenceLng != null) {
+                val nearestIndoor = allLocations
+                    .filter { it.type == "indoor" }
+                    .minByOrNull { loc ->
+                        DistanceCalculator.getDistance(
+                            referenceLat, referenceLng,
+                            loc.latitude, loc.longitude
+                        )
+                    }
+
+                // If we found a building close to our last point (e.g., within 50m), SNAP to it.
+                if (nearestIndoor != null) {
+                    val dist = DistanceCalculator.getDistance(
+                        referenceLat, referenceLng,
+                        nearestIndoor.latitude, nearestIndoor.longitude
+                    )
+
+                    // 50m Threshold to associate the outdoor point with the building entrance
+                    if (dist < 25.0) {
+                        Log.d("FetchAudio", "Handover: Switching from ${currentLocationId ?: "GPS"} to Indoor: ${nearestIndoor.id}")
+                        storyViewModel.fetchStoriesForLocation(nearestIndoor.id)
+                        return@LaunchedEffect
+                    }
+                }
             }
+        }
 
-            // LIVE TRACKING (Outdoor OR Searching for Building) ---
-
-            // Define what we are looking for
+        // 4. LIVE TRACKING (Standard Outdoor Behavior)
+        // We only reach here if:
+        // a) We are Outdoor (isUserIndoor = false) -> Normal GPS tracking.
+        // b) We are Indoor but haven't found a building yet -> Desperately looking using GPS.
+        if (userLoc != null) {
+            // Filter candidates based on mode
             val candidates = if (isUserIndoor) {
-                // If Indoor but NOT yet selected: Look for closest Building
                 allLocations.filter { it.type == "indoor" }
             } else {
-                // If Outdoor: Look for Everything (Regain full tracking)
                 allLocations
             }
 
-            // Use the separated DistanceCalculator to find the nearest match
             val foundLocation = DistanceCalculator.findNearestLocation(
                 userLoc.latitude,
                 userLoc.longitude,
@@ -54,13 +94,12 @@ fun FetchAudio(
             )
 
             if (foundLocation != null) {
-                // Enter the location if it's new
                 if (foundLocation.id != currentLocationId) {
                     storyViewModel.fetchStoriesForLocation(foundLocation.id)
                 }
             } else {
-                // Exit condition: Only clear if we are NOT pinned
-                // (We already handled the Pinned case at the top, so if we reach here, we are free to clear)
+                // Exit condition: Only clear if we are NOT pinned/locked
+                // If we are outdoor and walked away from everything, clear it.
                 if (currentLocationId != null) {
                     storyViewModel.clearLocation()
                 }
