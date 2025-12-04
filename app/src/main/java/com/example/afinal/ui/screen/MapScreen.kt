@@ -20,6 +20,7 @@ import com.example.afinal.logic.LocationGPS
 import com.example.afinal.models.LocationViewModel
 import com.example.afinal.models.StoryViewModel
 import com.example.afinal.navigation.Routes
+import com.example.afinal.ultis.DistanceCalculator
 import com.example.afinal.ultis.GeofenceHelper
 import com.example.afinal.ultis.IndoorDetector
 import com.google.android.gms.maps.model.CameraPosition
@@ -78,28 +79,31 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
         }
     }
 
-    // 3. Distance Check Logic
+    // 3. Centralized Distance Check Logic
     LaunchedEffect(myLocation, locations, hasBackgroundPermission) {
         if (locations.isNotEmpty() && myLocation != null) {
-            val results = FloatArray(1)
-            var closestLoc: String? = null
-            var minDist = Float.MAX_VALUE
+            // SYNCED: Use DistanceCalculator with 50m radius for UI visibility
+            val nearestLocation = DistanceCalculator.findNearestLocation(
+                userLat = myLocation!!.latitude,
+                userLng = myLocation!!.longitude,
+                candidates = locations,
+                radius = 50.0f
+            )
 
-            locations.forEach { loc ->
-                Location.distanceBetween(myLocation!!.latitude, myLocation!!.longitude, loc.latitude, loc.longitude, results)
-                if (results[0] < minDist) {
-                    minDist = results[0]
-                    closestLoc = loc.id
-                }
-            }
-            if (minDist < 50 && closestLoc != null) {
-                storyViewModel.fetchStoriesForLocation(closestLoc!!)
+            if (nearestLocation != null) {
+                storyViewModel.fetchStoriesForLocation(nearestLocation.id)
             } else {
                 storyViewModel.clearLocation()
             }
+
+            // Geofencing Logic (Keep distinct as it controls system fences, not UI)
             if (hasBackgroundPermission) {
-                Location.distanceBetween(myLocation!!.latitude, myLocation!!.longitude, schoolCenter.latitude, schoolCenter.longitude, results)
-                if (results[0] < 500) {
+                val distToSchool = DistanceCalculator.getDistance(
+                    myLocation!!.latitude, myLocation!!.longitude,
+                    schoolCenter.latitude, schoolCenter.longitude
+                )
+
+                if (distToSchool < 500) {
                     geofenceHelper.addGeofences(locations)
                 } else {
                     geofenceHelper.removeGeofences()
@@ -118,19 +122,16 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
             cameraPositionState = cameraPositionState,
             properties = MapProperties(isMyLocationEnabled = hasForegroundPermission)
         ) {
-            // [CHANGE 1] Added User Circle (Radius 10m)
-            // This follows the user's live position
             myLocation?.let { userLoc ->
                 Circle(
                     center = LatLng(userLoc.latitude, userLoc.longitude),
-                    radius = 3.0, // Requested 10m radius
-                    fillColor = Color(0x220000FF), // Light Blue transparent fill
-                    strokeColor = Color.Blue,      // Solid Blue border
+                    radius = 3.0,
+                    fillColor = Color(0x220000FF),
+                    strokeColor = Color.Blue,
                     strokeWidth = 2f
                 )
             }
 
-            // [CHANGE 2] Loop through locations but REMOVED the static geofence circles
             locations.forEach { loc ->
                 Marker(
                     state = MarkerState(position = LatLng(loc.latitude, loc.longitude)),

@@ -1,5 +1,6 @@
 package com.example.afinal.ui.screen
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -33,8 +35,10 @@ fun AudioPlayerScreen(
     audioService: AudioPlayerService?,
     onStoryLoaded: (StoryModel) -> Unit
 ) {
+    val context = LocalContext.current
     val story = storyViewModel.getStory(storyId)
 
+    // Notify parent (MainActivity) which story is selected (for MiniPlayer)
     LaunchedEffect(story) {
         story?.let { onStoryLoaded(it) }
     }
@@ -44,22 +48,35 @@ fun AudioPlayerScreen(
     var currentPosition by remember { mutableLongStateOf(0L) }
     var totalDuration by remember { mutableLongStateOf(0L) }
 
+    // --- 1. LOGIC: Load & Play Audio ---
+    // If the service is bound and the requested story is NOT the one currently playing, start it.
     LaunchedEffect(audioService, story) {
         if (audioService != null && story != null) {
-            if (audioService.currentAudioUrl != story.playableUrl) {
-                audioService.updateMetadata(story.name, story.user, story.locationName, story.id)
-                audioService.playAudio(story.playableUrl)
+            // Check if we need to change the track
+            if (audioService.currentStoryId != story.id) {
+                val intent = Intent(context, AudioPlayerService::class.java).apply {
+                    action = AudioPlayerService.ACTION_PLAY
+                    putExtra(AudioPlayerService.EXTRA_AUDIO_URL, story.playableUrl)
+                    putExtra(AudioPlayerService.EXTRA_TITLE, story.name)
+                    putExtra(AudioPlayerService.EXTRA_USER, story.user)
+                    putExtra(AudioPlayerService.EXTRA_STORY_ID, story.id)
+                    putExtra(AudioPlayerService.EXTRA_LOCATION, story.locationName)
+                }
+                // Send Intent to Service to update metadata and start playing
+                context.startService(intent)
             }
-            isPlaying = audioService.isPlaying
-            totalDuration = audioService.getDuration()
         }
     }
 
+    // --- 2. LOGIC: Update UI Loop ---
+    // Poll the service every 500ms to update the slider and timestamps
     LaunchedEffect(audioService) {
-        while (audioService != null) {
-            isPlaying = audioService.isPlaying
-            currentPosition = audioService.getCurrentPosition()
-            totalDuration = audioService.getDuration()
+        while (true) {
+            if (audioService != null) {
+                isPlaying = audioService.isPlaying
+                currentPosition = audioService.getCurrentPosition()
+                totalDuration = audioService.getDuration()
+            }
             delay(500)
         }
     }
@@ -120,12 +137,15 @@ fun AudioPlayerScreen(
 
                 // 3. SLIDER
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    val sliderValue = if (totalDuration > 0) currentPosition.toFloat() / totalDuration else 0f
+
                     Slider(
-                        value = if (totalDuration > 0) currentPosition.toFloat() / totalDuration else 0f,
+                        value = sliderValue.coerceIn(0f, 1f),
                         onValueChange = { newPercent ->
-                            val newPos = (newPercent * totalDuration).toInt()
-                            audioService?.seekTo(newPos)
-                            currentPosition = newPos.toLong()
+                            val newPos = (newPercent * totalDuration).toLong()
+                            // Update local state immediately for smooth dragging
+                            currentPosition = newPos
+                            audioService?.seekTo(newPos.toInt())
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -152,7 +172,11 @@ fun AudioPlayerScreen(
 
                     FilledIconButton(
                         onClick = {
-                            if (isPlaying) audioService?.pauseAudio() else audioService?.resumeAudio()
+                            if (isPlaying) {
+                                audioService?.pauseAudio()
+                            } else {
+                                audioService?.resumeAudio()
+                            }
                         },
                         modifier = Modifier.size(72.dp)
                     ) {

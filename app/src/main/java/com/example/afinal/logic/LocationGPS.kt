@@ -16,8 +16,8 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 
 class LocationGPS(val context: Context){
-    private val _fusedLocationClient: FusedLocationProviderClient
-    = LocationServices.getFusedLocationProviderClient(context)
+    private val _fusedLocationClient: FusedLocationProviderClient =
+        LocationServices.getFusedLocationProviderClient(context)
 
     fun requestLocationUpdate(viewModel: LocationViewModel){
         val locationCallback = object : LocationCallback(){
@@ -25,7 +25,6 @@ class LocationGPS(val context: Context){
                 super.onLocationResult(locationResult)
                 locationResult.lastLocation?.let {
                     val location = LocationData(latitude = it.latitude, longitude = it.longitude)
-
                     viewModel.updateLocation(location)
                 }
             }
@@ -36,9 +35,10 @@ class LocationGPS(val context: Context){
             _fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
         }
     }
+
     fun hasLocationPermission(context: Context): Boolean{
         return ContextCompat.checkSelfPermission(context,
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 && ContextCompat.checkSelfPermission(context,
             Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }

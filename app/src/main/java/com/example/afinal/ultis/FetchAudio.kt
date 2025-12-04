@@ -41,9 +41,7 @@ fun FetchAudio(
         // 3. HANDOVER: Transitioning from Outdoor -> Indoor
         // If the detector says "Indoor" but we are currently at an "Outdoor" location (or null)
         if (isUserIndoor && !isCurrentlyPinnedIndoor) {
-            // Strategy: Don't trust the User's GPS (it might be weak/drifting).
-            // Instead, trust the LAST KNOWN LOCATION (currentLocModel).
-            // Find the nearest "Indoor" version of where we just were.
+
 
             val referenceLat = currentLocModel?.latitude ?: userLoc?.latitude
             val referenceLng = currentLocModel?.longitude ?: userLoc?.longitude
@@ -75,10 +73,6 @@ fun FetchAudio(
             }
         }
 
-        // 4. LIVE TRACKING (Standard Outdoor Behavior)
-        // We only reach here if:
-        // a) We are Outdoor (isUserIndoor = false) -> Normal GPS tracking.
-        // b) We are Indoor but haven't found a building yet -> Desperately looking using GPS.
         if (userLoc != null) {
             // Filter candidates based on mode
             val candidates = if (isUserIndoor) {

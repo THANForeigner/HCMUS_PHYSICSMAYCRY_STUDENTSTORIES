@@ -54,8 +54,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val context = LocalContext.current
                     val locationGPS = remember { LocationGPS(context) }
-
-                    // --- 1. PHẦN LOGIC PERMISSION (GIỮ NGUYÊN CỦA BẠN) ---
                     var hasForegroundPermission by remember {
                         mutableStateOf(
                             ContextCompat.checkSelfPermission(
@@ -122,6 +120,9 @@ class MainActivity : ComponentActivity() {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
                             }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+                            }
                             permissionLauncher.launch(permissionsToRequest.toTypedArray())
                         } else {
                             locationGPS.requestLocationUpdate(locationViewModel)
@@ -148,7 +149,17 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                    LaunchedEffect(Unit) {
+                        val discoveryIntent = Intent(context, NotificationService::class.java).apply {
+                            action = NotificationService.ACTION_START_TRACKING
+                        }
 
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startForegroundService(discoveryIntent)
+                        } else {
+                            context.startService(discoveryIntent)
+                        }
+                    }
                     // --- 2. LOGIC AUDIO SERVICE & MINIPLAYER (PHẦN MỚI THÊM) ---
                     var audioService by remember { mutableStateOf<AudioPlayerService?>(null) }
                     var isBound by remember { mutableStateOf(false) }

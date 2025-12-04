@@ -33,7 +33,6 @@ class GeofenceHelper(context: Context) : ContextWrapper(context) {
         val geofenceList = locations.map { loc ->
             Geofence.Builder()
                 .setRequestId(loc.id)
-                // UPDATED: Radius set to 5 meters as requested
                 .setCircularRegion(loc.latitude, loc.longitude, GEOFENCE_RADIUS)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
