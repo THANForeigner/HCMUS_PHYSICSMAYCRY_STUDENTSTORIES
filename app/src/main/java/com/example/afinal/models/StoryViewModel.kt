@@ -104,10 +104,25 @@ class StoryViewModel : ViewModel() {
                     for (document in snapshot.documents) {
                         val lat = document.getDouble("latitude")
                         val lng = document.getDouble("longitude")
+
+                        // 1. Fetch Zone Flag (default to false if missing)
+                        val isZone = document.getBoolean("zone") ?: false
+
+                        // 2. Fetch Corners (1, 2, 3, 4)
+                        val lat1 = document.getDouble("latitude1")
+                        val lng1 = document.getDouble("longitude1")
+                        val lat2 = document.getDouble("latitude2")
+                        val lng2 = document.getDouble("longitude2")
+                        val lat3 = document.getDouble("latitude3")
+                        val lng3 = document.getDouble("longitude3")
+                        val lat4 = document.getDouble("latitude4")
+                        val lng4 = document.getDouble("longitude4")
+
                         if (lat != null && lng != null) {
                             val locationId = document.id
                             var floors = emptyList<Int>()
                             if (type == "indoor") {
+                                // ... (fetching floors logic remains the same) ...
                                 val floorSnapshot = rootRef.collection(collectionName)
                                     .document(locationId)
                                     .collection("floor")
@@ -115,6 +130,7 @@ class StoryViewModel : ViewModel() {
                                     .await()
                                 floors = floorSnapshot.documents.mapNotNull { it.id.toIntOrNull() }
                             }
+
                             loadedLocations.add(
                                 LocationModel(
                                     id = locationId,
@@ -122,7 +138,13 @@ class StoryViewModel : ViewModel() {
                                     latitude = lat,
                                     longitude = lng,
                                     type = type,
-                                    floors = floors
+                                    floors = floors,
+                                    isZone = isZone,
+                                    // Map the corners
+                                    latitude1 = lat1, longitude1 = lng1,
+                                    latitude2 = lat2, longitude2 = lng2,
+                                    latitude3 = lat3, longitude3 = lng3,
+                                    latitude4 = lat4, longitude4 = lng4
                                 )
                             )
                         }

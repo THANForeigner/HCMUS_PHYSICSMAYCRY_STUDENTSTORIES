@@ -28,15 +28,20 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
     val locationViewModel: LocationViewModel = viewModel()
 
     val locations by storyViewModel.locations
-    val myLocation = locationViewModel.location.value // Live User Location
+    val myLocation by locationViewModel.location // Live User Location
 
     val myLocationUtils = remember { LocationGPS(context) }
     val indoorDetector = remember { IndoorDetector(context) }
 
-    // Center point for map camera
+    // --- COLOR DEFINITIONS ---
+    val colorIndoor = Color(0xFF4285F4) // Google Blue
+    val colorOutdoor = Color(0xFF34A853) // Google Green
+    val colorActive = Color(0xFFEA4335)  // Google Red (Active Zone)
+
+    // Center point for map camera (University of Science)
     val schoolCenter = LatLng(10.762867, 106.682496)
 
-    // Permissions Check (Foreground only needed for Map UI & GPS)
+    // Permissions Check
     val hasForegroundPermission = ContextCompat.checkSelfPermission(
         context, Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
@@ -55,19 +60,21 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
         }
     }
 
-    // 3. Centralized Distance Check Logic (For UI interaction only)
+    // 3. Determine Current "Active" Location
+    var activeLocationId by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(myLocation, locations) {
         if (locations.isNotEmpty() && myLocation != null) {
-            // SYNCED: Use DistanceCalculator with 50m radius for UI visibility
-            val nearestLocation = DistanceCalculator.findNearestLocation(
+            val targetLocation = DistanceCalculator.findCurrentLocation(
                 userLat = myLocation!!.latitude,
                 userLng = myLocation!!.longitude,
-                candidates = locations,
-                radius = 50.0f
+                candidates = locations
             )
 
-            if (nearestLocation != null) {
-                storyViewModel.fetchStoriesForLocation(nearestLocation.id)
+            activeLocationId = targetLocation?.id
+
+            if (targetLocation != null) {
+                storyViewModel.fetchStoriesForLocation(targetLocation.id)
             } else {
                 storyViewModel.clearLocation()
             }
@@ -84,6 +91,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
             cameraPositionState = cameraPositionState,
             properties = MapProperties(isMyLocationEnabled = hasForegroundPermission)
         ) {
+            // Optional: Explicit User Dot
             myLocation?.let { userLoc ->
                 Circle(
                     center = LatLng(userLoc.latitude, userLoc.longitude),
@@ -95,17 +103,45 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
             }
 
             locations.forEach { loc ->
+                val isActive = loc.id == activeLocationId
+
+                // Determine Colors based on Type and Active State
+                val baseColor = if (isActive) colorActive else if (loc.type == "indoor") colorIndoor else colorOutdoor
+                val fillAlpha = if (isActive) 0.3f else 0.15f
+                val strokeThickness = if (isActive) 5f else 2f
+
+                // DRAW ZONE POLYGON
+                if (loc.isZone) {
+                    val corners = DistanceCalculator.getZoneCorners(loc)
+                    if (corners.isNotEmpty()) {
+                        Polygon(
+                            points = corners,
+                            fillColor = baseColor.copy(alpha = fillAlpha),
+                            strokeColor = baseColor,
+                            strokeWidth = strokeThickness
+                        )
+                    }
+                }
+
+                // DRAW MARKER (Center point)
                 Marker(
                     state = MarkerState(position = LatLng(loc.latitude, loc.longitude)),
                     title = loc.locationName,
-                    snippet = "Tap to see ${loc.type} stories",
+                    snippet = if (isActive) "You are here!" else "Tap to view stories",
+                    icon = if (isActive) {
+                        com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
+                            com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED
+                        )
+                    } else {
+                        com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
+                            if (loc.type == "indoor") com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE
+                            else com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_GREEN
+                        )
+                    },
                     onClick = {
                         storyViewModel.fetchStoriesForLocation(loc.id)
-
                         navController.navigate(Routes.AUDIOS) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }

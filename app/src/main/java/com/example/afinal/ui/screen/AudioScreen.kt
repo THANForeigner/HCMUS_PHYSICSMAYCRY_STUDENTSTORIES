@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.afinal.data.LocationData
 import com.example.afinal.models.LocationViewModel
 import com.example.afinal.models.StoryViewModel
 import com.example.afinal.navigation.Routes
@@ -48,13 +49,43 @@ fun AudiosScreen(
     val indoorDetector = remember { IndoorDetector(context) }
     val isUserIndoor by indoorDetector.observeIndoorStatus().collectAsState(initial = false)
 
+    // TRACK PAST LOCATION
+    // Store the last valid outdoor location to use when the user goes indoors.
+    var lastOutdoorLocation by remember { mutableStateOf<LocationData?>(null) }
+
+    // Update lastOutdoorLocation only when the user is explicitly outdoors and GPS is valid
+    LaunchedEffect(userLocation, isUserIndoor) {
+        if (!isUserIndoor && userLocation != null) {
+            lastOutdoorLocation = userLocation
+        }
+    }
+
     // 2. REPLACED FetchAudio WITH SYNCED LOGIC
     // This ensures MapScreen and AudioScreen behave exactly the same.
-    LaunchedEffect(userLocation, allLocations) {
-        if (userLocation != null && allLocations.isNotEmpty()) {
+    // Logic Updated: Determine whether to use live GPS or frozen Past Location
+    LaunchedEffect(userLocation, allLocations, isUserIndoor, lastOutdoorLocation) {
+        // Default to live user location
+        var targetLocation: LocationData? = userLocation
+
+        // If user is detected indoor, try to use the past outdoor location
+        if (isUserIndoor && lastOutdoorLocation != null && allLocations.isNotEmpty()) {
+            // Check if the past location is actually near an INDOOR building
+            val check = DistanceCalculator.findNearestLocation(
+                userLat = lastOutdoorLocation!!.latitude,
+                userLng = lastOutdoorLocation!!.longitude,
+                candidates = allLocations,
+                radius = 50.0f
+            )
+            // Only freeze location if the past location maps to a building with type="indoor"
+            if (check != null && check.type == "indoor") {
+                targetLocation = lastOutdoorLocation
+            }
+        }
+
+        if (targetLocation != null && allLocations.isNotEmpty()) {
             val nearest = DistanceCalculator.findNearestLocation(
-                userLat = userLocation!!.latitude,
-                userLng = userLocation!!.longitude,
+                userLat = targetLocation!!.latitude,
+                userLng = targetLocation!!.longitude,
                 candidates = allLocations,
                 radius = 50.0f // Matches MapScreen visibility radius
             )
