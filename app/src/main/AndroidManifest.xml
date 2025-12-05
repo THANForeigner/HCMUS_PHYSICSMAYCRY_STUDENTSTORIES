@@ -48,7 +48,7 @@
             android:name=".logic.AudioPlayerService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback|location" />
 
         <receiver
             android:name=".ultis.LocationReceiver"

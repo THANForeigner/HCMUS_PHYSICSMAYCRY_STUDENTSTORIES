@@ -38,7 +38,6 @@ import com.example.afinal.navigation.AppNavigation
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ui.screen.MiniPlayer
 import com.example.afinal.ui.theme.FINALTheme
-import com.example.afinal.logic.LocationGPS
 import com.example.afinal.ultis.LocationReceiver
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
@@ -50,6 +49,12 @@ class MainActivity : ComponentActivity() {
     private val locationViewModel: LocationViewModel by viewModels()
     private val storyViewModel: StoryViewModel by viewModels()
 
+    // Handle "New Intent" for when user clicks a notification while app is already open
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent) // Update the main intent
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -59,144 +64,83 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val context = LocalContext.current
-                    val locationGPS = remember { LocationGPS(context) }
-                    var hasForegroundPermission by remember {
-                        mutableStateOf(
-                            ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-                        )
-                    }
+
+                    // Permission State
                     var hasAllPermissions by remember {
                         mutableStateOf(
                             (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) &&
+                                    (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) &&
                                     (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
                                     } else true)
                         )
                     }
-                    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
-                        contract = ActivityResultContracts.RequestPermission()
-                    ) { isGranted ->
-                        if (isGranted) {
-                            Toast.makeText(context, "Background location enabled!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Background location needed for Geofencing", Toast.LENGTH_LONG).show()
-                        }
-                    }
 
-                    val foregroundPermissionLauncher = rememberLauncherForActivityResult(
-                        contract = ActivityResultContracts.RequestMultiplePermissions()
-                    ) { permissions ->
-                        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-
-                        if (fineLocationGranted || coarseLocationGranted) {
-                            hasForegroundPermission = true
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                val bgPermission = ContextCompat.checkSelfPermission(
-                                    context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                                )
-                                if (bgPermission != PackageManager.PERMISSION_GRANTED) {
-                                    backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                                }
-                            }
-                        }
-                    }
+                    // Permission Launcher
                     val permissionLauncher = rememberLauncherForActivityResult(
                         contract = ActivityResultContracts.RequestMultiplePermissions()
                     ) { permissions ->
-                        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                        val notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            permissions[Manifest.permission.POST_NOTIFICATIONS] == true
-                        } else true
+                        val fine = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+                        val bg = permissions[Manifest.permission.ACCESS_BACKGROUND_LOCATION] == true
+                        // Note: Android 11+ requires requesting Background permission separately/afterwards.
+                        // For simplicity here we check the result.
 
-                        hasAllPermissions = locationGranted && notificationGranted
-                        if (locationGranted) {
-                            locationGPS.requestLocationUpdate(locationViewModel)
+                        if (fine) {
+                            // If we have fine location, we assume we can at least start foreground tracking
+                            hasAllPermissions = true
                         }
                     }
+
+                    // 1. Request Permissions on Start
                     LaunchedEffect(Unit) {
                         if (!hasAllPermissions) {
-                            val permissionsToRequest = mutableListOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION,
-                                Manifest.permission.POST_NOTIFICATIONS
-                            )
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                            permissionLauncher.launch(permissionsToRequest.toTypedArray())
-                        } else {
-                            locationGPS.requestLocationUpdate(locationViewModel)
+                            val req = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) req.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) req.add(Manifest.permission.POST_NOTIFICATIONS)
+
+                            permissionLauncher.launch(req.toTypedArray())
                         }
                     }
+
+                    // 2. Start Background Location Tracking (The "App Turned Off" Logic)
                     LaunchedEffect(hasAllPermissions) {
                         if (hasAllPermissions) {
-                            // A. Setup the Request
-                            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000) // 10 seconds
-                                .setMinUpdateDistanceMeters(10f)
-                                .build()
-
-                            // B. Create the PendingIntent that wakes up the Receiver
-                            val intent = Intent(context, LocationReceiver::class.java)
-                            val locationPendingIntent = PendingIntent.getBroadcast(
-                                context,
-                                0,
-                                intent,
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                            )
-
-                            // C. Request Updates (This persists even if app dies)
-                            // Make sure you check for permissions before calling this
                             try {
                                 val client = LocationServices.getFusedLocationProviderClient(context)
+
+                                // Setup Request: Balanced Power for Background
+                                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15000) // 15 seconds
+                                    .setMinUpdateDistanceMeters(20f) // Only update if moved 20m
+                                    .build()
+
+                                // Setup PendingIntent -> Triggers LocationReceiver.kt
+                                val intent = Intent(context, LocationReceiver::class.java)
+                                val locationPendingIntent = PendingIntent.getBroadcast(
+                                    context,
+                                    0,
+                                    intent,
+                                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                                )
+
                                 client.requestLocationUpdates(locationRequest, locationPendingIntent)
-                                Toast.makeText(context, "Tracking started (Background Enabled)", Toast.LENGTH_SHORT).show()
+                                Log.d("MainActivity", "Background Location Receiver Registered")
+
                             } catch (e: SecurityException) {
-                                Log.e("MainActivity", "Permission missing", e)
+                                Log.e("MainActivity", "Permission missing for updates", e)
                             }
                         }
                     }
-                    LaunchedEffect(Unit) {
-                        val permissionsToRequest = mutableListOf<String>()
-                        if (!hasForegroundPermission) {
-                            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-                            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                        }
-                        if (permissionsToRequest.isNotEmpty()) {
-                            foregroundPermissionLauncher.launch(permissionsToRequest.toTypedArray())
-                        } else {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                                    backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                                }
-                            }
-                        }
-                    }
-                    // --- 2. LOGIC AUDIO SERVICE & MINIPLAYER (PHẦN MỚI THÊM) ---
+
+                    // --- 3. AUDIO SERVICE & UI LOGIC ---
                     var audioService by remember { mutableStateOf<AudioPlayerService?>(null) }
                     var isBound by remember { mutableStateOf(false) }
-
-                    // State để điều khiển UI MiniPlayer
                     var currentPlayingStory by remember { mutableStateOf<StoryModel?>(null) }
                     var isPlaying by remember { mutableStateOf(false) }
 
-                    // [QUAN TRỌNG] Tạo NavController tại đây để quản lý luồng
                     val navController = rememberNavController()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route
 
-                    // Kết nối Service
                     val connection = remember {
                         object : ServiceConnection {
                             override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -212,71 +156,42 @@ class MainActivity : ComponentActivity() {
 
                     DisposableEffect(Unit) {
                         val intent = Intent(context, AudioPlayerService::class.java)
-                        context.startService(intent) // Start Service
-                        context.bindService(intent, connection, Context.BIND_AUTO_CREATE) // Bind Service
+                        context.startService(intent)
+                        context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
                         onDispose { if (isBound) context.unbindService(connection) }
                     }
 
-                    // Cập nhật trạng thái Play/Pause liên tục
                     LaunchedEffect(audioService) {
                         while (true) {
-                            if (audioService != null && isBound) {
-                                isPlaying = audioService!!.isPlaying
-                            }
+                            if (audioService != null && isBound) isPlaying = audioService!!.isPlaying
                             delay(500)
                         }
                     }
 
-                    // --- 3. UI SETUP (XẾP LỚP GIAO DIỆN) ---
-
-                    // Điều kiện hiển thị MiniPlayer: Có bài hát VÀ KHÔNG ở màn hình Full Player
                     val isAudioPlayerScreen = currentRoute?.startsWith(Routes.AUDIO_PLAYER) == true
                     val showMiniPlayer = currentPlayingStory != null && !isAudioPlayerScreen
-
-                    // Nếu ở MainApp (có BottomBar), đẩy MiniPlayer lên 80dp
-                    val isMainAppScreen = currentRoute == Routes.MAIN_APP
-                    val bottomPadding = if (isMainAppScreen) 80.dp else 0.dp
+                    val bottomPadding = if (currentRoute == Routes.MAIN_APP) 80.dp else 0.dp
 
                     Scaffold { innerPadding ->
-                        Box(modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                        ) {
-                            // Layer 1: App Navigation (Nằm dưới cùng)
+                        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                             AppNavigation(
-                                navController = navController, // Truyền Controller xuống
-                                startIntent = intent,
+                                navController = navController,
+                                startIntent = intent, // Pass current intent (possibly from Notification)
                                 locationViewModel = locationViewModel,
                                 storyViewModel = storyViewModel,
-                                audioService = audioService,       // Truyền Service xuống
-                                onStorySelected = { story ->       // Nhận bài hát từ AudioScreen
-                                    currentPlayingStory = story
-                                }
+                                audioService = audioService,
+                                onStorySelected = { story -> currentPlayingStory = story }
                             )
 
-                            // Layer 2: MiniPlayer (Nằm đè lên trên)
                             if (showMiniPlayer) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .padding(bottom = bottomPadding) // Padding để tránh BottomBar
-                                ) {
+                                Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding)) {
                                     MiniPlayer(
                                         title = currentPlayingStory!!.name,
                                         user = currentPlayingStory!!.user,
                                         isPlaying = isPlaying,
-                                        onPlayPause = {
-                                            if (isPlaying) audioService?.pauseAudio() else audioService?.resumeAudio()
-                                        },
-                                        onClose = {
-                                            audioService?.pauseAudio()
-                                            currentPlayingStory = null // Ẩn player
-                                        },
-                                        onClick = {
-                                            // Mở lại màn hình Full Player
-                                            val storyId = currentPlayingStory!!.id
-                                            navController.navigate("${Routes.AUDIO_PLAYER}/$storyId")
-                                        }
+                                        onPlayPause = { if (isPlaying) audioService?.pauseAudio() else audioService?.resumeAudio() },
+                                        onClose = { audioService?.pauseAudio(); currentPlayingStory = null },
+                                        onClick = { navController.navigate("${Routes.AUDIO_PLAYER}/${currentPlayingStory!!.id}") }
                                     )
                                 }
                             }

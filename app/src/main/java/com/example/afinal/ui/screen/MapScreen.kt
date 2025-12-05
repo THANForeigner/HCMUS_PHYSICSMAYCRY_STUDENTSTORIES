@@ -2,7 +2,6 @@ package com.example.afinal.ui.screen
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,9 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.afinal.logic.LocationGPS
@@ -21,7 +17,6 @@ import com.example.afinal.models.LocationViewModel
 import com.example.afinal.models.StoryViewModel
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ultis.DistanceCalculator
-import com.example.afinal.ultis.GeofenceHelper
 import com.example.afinal.ultis.IndoorDetector
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -30,7 +25,6 @@ import com.google.maps.android.compose.*
 @Composable
 fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val locationViewModel: LocationViewModel = viewModel()
 
     val locations by storyViewModel.locations
@@ -38,32 +32,14 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
 
     val myLocationUtils = remember { LocationGPS(context) }
     val indoorDetector = remember { IndoorDetector(context) }
-    val geofenceHelper = remember { GeofenceHelper(context) }
 
+    // Center point for map camera
     val schoolCenter = LatLng(10.762867, 106.682496)
 
-    // Permissions Check
-    val hasForegroundPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION
+    // Permissions Check (Foreground only needed for Map UI & GPS)
+    val hasForegroundPermission = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
-
-    var hasBackgroundPermission by remember { mutableStateOf(false) }
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                hasBackgroundPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
-                } else {
-                    true
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
 
     // 1. Start GPS
     LaunchedEffect(hasForegroundPermission) {
@@ -79,8 +55,8 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
         }
     }
 
-    // 3. Centralized Distance Check Logic
-    LaunchedEffect(myLocation, locations, hasBackgroundPermission) {
+    // 3. Centralized Distance Check Logic (For UI interaction only)
+    LaunchedEffect(myLocation, locations) {
         if (locations.isNotEmpty() && myLocation != null) {
             // SYNCED: Use DistanceCalculator with 50m radius for UI visibility
             val nearestLocation = DistanceCalculator.findNearestLocation(
@@ -94,20 +70,6 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
                 storyViewModel.fetchStoriesForLocation(nearestLocation.id)
             } else {
                 storyViewModel.clearLocation()
-            }
-
-            // Geofencing Logic (Keep distinct as it controls system fences, not UI)
-            if (hasBackgroundPermission) {
-                val distToSchool = DistanceCalculator.getDistance(
-                    myLocation!!.latitude, myLocation!!.longitude,
-                    schoolCenter.latitude, schoolCenter.longitude
-                )
-
-                if (distToSchool < 500) {
-                    geofenceHelper.addGeofences(locations)
-                } else {
-                    geofenceHelper.removeGeofences()
-                }
             }
         }
     }
