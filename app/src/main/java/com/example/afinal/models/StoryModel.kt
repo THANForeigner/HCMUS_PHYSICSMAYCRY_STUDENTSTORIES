@@ -18,5 +18,5 @@ data class StoryModel(
     var locationName: String = "",
     val position: Position? = null,
     val pictures: List<String> = emptyList(),
-    val floor: Int = 1
+    val floor: Int? = null
 )

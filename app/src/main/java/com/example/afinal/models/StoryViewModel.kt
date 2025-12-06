@@ -10,6 +10,8 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlin.collections.iterator
@@ -131,7 +133,6 @@ class StoryViewModel : ViewModel() {
                             val lng3 = document.getDouble("longitude3")
                             val lat4 = document.getDouble("latitude4")
                             val lng4 = document.getDouble("longitude4")
-
                             if (lat != null && lng != null) {
                                 val locationId = document.id
                                 var floors = emptyList<Int>()
@@ -191,6 +192,7 @@ class StoryViewModel : ViewModel() {
                 processSnapshot(it.documents, null, isAllStories = true)
             }
         }
+
     }
 
     fun fetchStoriesForLocation(locationId: String, floor: Int = 1, forceRefresh: Boolean = false) {
@@ -242,57 +244,68 @@ class StoryViewModel : ViewModel() {
         locationId: String?,
         isAllStories: Boolean
     ) {
-        val storage = FirebaseStorage.getInstance()
-        val storiesList = mutableListOf<StoryModel>()
+        // Use viewModelScope to handle threading automatically
+        viewModelScope.launch {
+            val storage = FirebaseStorage.getInstance()
 
-        if (documents.isEmpty()) {
-            if (isAllStories) _allStories.value = emptyList() else _currentStories.value = emptyList()
-            return
-        }
+            // 1. Process all documents in parallel using async
+            val deferredStories = documents.map { doc ->
+                async {
+                    val extractedLoc = locationId ?: doc.reference.path.split("/").getOrNull(3) ?: ""
 
-        var processedCount = 0
-        val total = documents.size
+                    // [ADDED] Check if the document path contains "outdoor_locations"
+                    val isOutdoor = doc.reference.path.contains("outdoor_locations")
 
-        fun checkDone() {
-            processedCount++
-            if (processedCount == total) {
-                if (isAllStories) {
-                    _allStories.value = storiesList
-                } else {
-                    _currentStories.value = storiesList
+                    // Safely convert document to object
+                    val story = try {
+                        // [MODIFIED] Logic to conditionally set floor to null
+                        var model = doc.toObject(StoryModel::class.java)
+
+                        if (isOutdoor && model != null) {
+                            model = model.copy(floor = null)
+                        }
+
+                        // Apply ID and Location Name to the model
+                        model?.copy(id = doc.id, locationName = extractedLoc)
+
+                    } catch (e: Exception) {
+                        Log.e("StoryViewModel", "Error parsing doc: ${doc.id}", e)
+                        null
+                    }
+
+                    // If story exists, resolve the URL
+                    if (story != null) {
+                        if (story.audioUrl?.startsWith("gs://") == true) {
+                            try {
+                                // Convert Task to suspend function with .await()
+                                val uri = storage.getReferenceFromUrl(story.audioUrl).downloadUrl.await()
+                                story.playableUrl = uri.toString()
+                            } catch (e: Exception) {
+                                Log.e("StoryViewModel", "Error resolving audio URL for ${story.id}", e)
+                                // Fallback: keep original or set empty
+                                story.playableUrl = ""
+                            }
+                        } else {
+                            story.playableUrl = story.audioUrl ?: ""
+                        }
+                    }
+
+                    story
                 }
             }
-        }
 
-        for (doc in documents) {
-            val extractedLoc = locationId ?: doc.reference.path.split("/").getOrNull(3) ?: ""
-            val story = try {
-                doc.toObject(StoryModel::class.java)?.copy(id = doc.id, locationName = extractedLoc)
-            } catch (e: Exception) { null }
-
-            if (story == null) {
-                checkDone()
-                continue
+            // 2. Wait for all async operations to complete and filter out nulls
+            val storiesList = deferredStories.awaitAll().filterNotNull()
+            for (story in storiesList) {
+                Log.d("StoryDebug", "Fetched Story ID: ${story.id}")
             }
-
-            if (story.audioUrl?.startsWith("gs://") == true) {
-                try {
-                    storage.getReferenceFromUrl(story.audioUrl).downloadUrl
-                        .addOnSuccessListener { uri ->
-                            story.playableUrl = uri.toString()
-                            storiesList.add(story)
-                            checkDone()
-                        }
-                        .addOnFailureListener {
-                            checkDone()
-                        }
-                } catch (e: Exception) {
-                    checkDone()
-                }
+            // 3. Update the state (this runs on the Main thread automatically in viewModelScope)
+            if (isAllStories) {
+                _allStories.value = storiesList
+                Log.d("StoryViewModel", "Updated allStories with ${storiesList.size} items")
             } else {
-                story.playableUrl = story.audioUrl ?: ""
-                storiesList.add(story)
-                checkDone()
+                _currentStories.value = storiesList
+                Log.d("StoryViewModel", "Updated currentStories with ${storiesList.size} items")
             }
         }
     }
