@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -37,6 +38,9 @@ class StoryViewModel : ViewModel() {
 
     private var _loadedFloor = 0
 
+    // Track the active listener so we can remove it when switching locations
+    private var storyListener: ListenerRegistration? = null
+
     init {
         fetchLocations()
         fetchAllStories()
@@ -60,6 +64,10 @@ class StoryViewModel : ViewModel() {
 
     fun clearLocation() {
         if (_currentLocationId.value != null) {
+            // Remove listener when clearing location to stop updates
+            storyListener?.remove()
+            storyListener = null
+
             _currentLocationId.value = null
             _currentStories.value = emptyList()
             _isIndoor.value = false
@@ -69,7 +77,6 @@ class StoryViewModel : ViewModel() {
     fun addLocation(latitude: Double, longitude: Double, locationName: String, type: String) {
         viewModelScope.launch {
             val db = FirebaseFirestore.getInstance()
-            // Use the user-provided locationName as the document ID
             val newLocationRef = db.collection("locations").document("locations")
                 .collection("${type}_locations").document(locationName)
 
@@ -84,10 +91,7 @@ class StoryViewModel : ViewModel() {
             try {
                 newLocationRef.set(newLocationModel).await()
                 Log.d("StoryViewModel", "Location added successfully: $newLocationModel")
-                // No need to manually update _locations here, the snapshot listener will catch it automatically
-                // Optionally set current location immediately if needed
                 _currentLocationId.value = locationName
-
             } catch (e: Exception) {
                 Log.e("StoryViewModel", "Error adding new location: $newLocationModel", e)
             }
@@ -103,7 +107,6 @@ class StoryViewModel : ViewModel() {
         )
 
         for ((collectionName, type) in collectionsMap) {
-            // CHANGED: Use addSnapshotListener for real-time updates
             rootRef.collection(collectionName).addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.e("Firestore", "Listen failed for $collectionName", e)
@@ -111,7 +114,6 @@ class StoryViewModel : ViewModel() {
                 }
 
                 if (snapshot != null) {
-                    // Since we might need to fetch floors (async), we launch a coroutine
                     viewModelScope.launch {
                         val parsedList = mutableListOf<LocationModel>()
 
@@ -134,7 +136,6 @@ class StoryViewModel : ViewModel() {
                                 val locationId = document.id
                                 var floors = emptyList<Int>()
 
-                                // 2. Fetch Floors if indoor
                                 if (type == "indoor") {
                                     try {
                                         val floorSnapshot = rootRef.collection(collectionName)
@@ -166,16 +167,13 @@ class StoryViewModel : ViewModel() {
                             }
                         }
 
-                        // 3. Update the specific list and merge
                         if (type == "indoor") {
                             _indoorList = parsedList
                         } else {
                             _outdoorList = parsedList
                         }
 
-                        // Merge both lists into the exposed State
                         _locations.value = _indoorList + _outdoorList
-                        Log.d("StoryViewModel", "Locations updated. Total: ${_locations.value.size} (Indoor: ${_indoorList.size}, Outdoor: ${_outdoorList.size})")
                     }
                 }
             }
@@ -195,10 +193,16 @@ class StoryViewModel : ViewModel() {
         }
     }
 
-    fun fetchStoriesForLocation(locationId: String, floor: Int = 1) {
-        if (_currentLocationId.value == locationId && _loadedFloor == floor && _currentStories.value.isNotEmpty()) {
+    fun fetchStoriesForLocation(locationId: String, floor: Int = 1, forceRefresh: Boolean = false) {
+        // If we are already listening to this location/floor, do nothing (unless forced)
+        // The active listener will handle real-time updates (like new posts)
+        if (!forceRefresh && _currentLocationId.value == locationId && _loadedFloor == floor && _currentStories.value.isNotEmpty()) {
             return
         }
+
+        // Clean up old listener before starting a new one
+        storyListener?.remove()
+
         _currentLocationId.value = locationId
         _currentFloor.value = floor
         val db = FirebaseFirestore.getInstance()
@@ -215,18 +219,18 @@ class StoryViewModel : ViewModel() {
                 .collection("posts")
         }
 
-        Log.d("StoryViewModel", "Fetching stories for location: $locationId, type: $locationType, query path: ${query.path}")
+        Log.d("StoryViewModel", "Fetching stories for location: $locationId, type: $locationType")
 
-        query.addSnapshotListener { snapshot, e ->
+        // Store the registration so it stays active and can be cleaned up
+        storyListener = query.addSnapshotListener { snapshot, e ->
             if (e != null) {
                 Log.e("StoryViewModel", "Error fetching stories for location", e)
                 return@addSnapshotListener
             }
             if (snapshot == null) {
-                Log.e("StoryViewModel", "Snapshot is null for location: $locationId")
                 return@addSnapshotListener
             }
-            Log.d("StoryViewModel", "Snapshot listener triggered for location: $locationId. Documents found: ${snapshot.documents.size}")
+            // Real-time update: this runs whenever data changes (including new posts)
             processSnapshot(snapshot.documents, locationId, isAllStories = false)
         }
         _loadedFloor = floor
@@ -241,11 +245,8 @@ class StoryViewModel : ViewModel() {
         val storage = FirebaseStorage.getInstance()
         val storiesList = mutableListOf<StoryModel>()
 
-        Log.d("StoryViewModel", "processSnapshot: received ${documents.size} documents. isAllStories: $isAllStories")
-
         if (documents.isEmpty()) {
             if (isAllStories) _allStories.value = emptyList() else _currentStories.value = emptyList()
-            Log.d("StoryViewModel", "processSnapshot: No documents, clearing list.")
             return
         }
 
@@ -257,10 +258,8 @@ class StoryViewModel : ViewModel() {
             if (processedCount == total) {
                 if (isAllStories) {
                     _allStories.value = storiesList
-                    Log.d("StoryViewModel", "processSnapshot: Finished processing all stories. Total: ${storiesList.size}")
                 } else {
                     _currentStories.value = storiesList
-                    Log.d("StoryViewModel", "processSnapshot: Finished processing stories for location. Total: ${storiesList.size}")
                 }
             }
         }
@@ -272,7 +271,6 @@ class StoryViewModel : ViewModel() {
             } catch (e: Exception) { null }
 
             if (story == null) {
-                Log.e("StoryViewModel", "processSnapshot: Failed to convert document to StoryModel. Doc ID: ${doc.id}")
                 checkDone()
                 continue
             }
@@ -283,15 +281,12 @@ class StoryViewModel : ViewModel() {
                         .addOnSuccessListener { uri ->
                             story.playableUrl = uri.toString()
                             storiesList.add(story)
-                            Log.d("StoryViewModel", "processSnapshot: Successfully fetched playable URL for ${story.id}")
                             checkDone()
                         }
-                        .addOnFailureListener { e ->
-                            Log.e("StoryViewModel", "processSnapshot: Failed to get download URL for ${story.id}", e)
+                        .addOnFailureListener {
                             checkDone()
                         }
                 } catch (e: Exception) {
-                    Log.e("StoryViewModel", "processSnapshot: Exception while getting download URL for ${story.id}", e)
                     checkDone()
                 }
             } else {
@@ -300,5 +295,10 @@ class StoryViewModel : ViewModel() {
                 checkDone()
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        storyListener?.remove()
     }
 }

@@ -48,27 +48,20 @@ fun AudiosScreen(
     val allLocations by storyViewModel.locations
 
     val indoorDetector = remember { IndoorDetector(context) }
-    // Collect the indoor status from the detector
     val isUserIndoor by indoorDetector.observeIndoorStatus().collectAsState(initial = false)
 
-    // --- NEW: START LIVE GPS UPDATES ---
-    // This connects LocationGPS to LocationViewModel to update the UI "live"
+    // Start Live GPS Updates
     LaunchedEffect(Unit) {
         val locationGPS = LocationGPS(context)
         locationGPS.requestLocationUpdate(locationViewModel)
         Log.d("AudioScreen", "Requested live location updates from LocationGPS")
     }
 
-    // 2. REPLACED FetchAudio WITH SYNCED ZONE LOGIC
-    // MODIFIED: Added isUserIndoor to dependencies and logic
+    // Synced Zone Logic
+    // This updates the location in StoryViewModel.
+    // StoryViewModel's snapshot listener will then automatically handle new stories.
     LaunchedEffect(userLocation, allLocations, isUserIndoor) {
-        // LOCK LOGIC:
-        // If the user is detected as INDOOR, we STOP processing new GPS updates.
-        // This effectively "locks" the user at the last identified location (e.g. building entrance).
-        // We only calculate and switch locations if the user is OUTDOOR.
         if (!isUserIndoor && userLocation != null && allLocations.isNotEmpty()) {
-
-            // UPDATED: Use findNearestLocation instead of findCurrentLocation
             val currentLoc = DistanceCalculator.findNearestLocation(
                 userLat = userLocation!!.latitude,
                 userLng = userLocation!!.longitude,
@@ -78,7 +71,6 @@ fun AudiosScreen(
             Log.d("ZoneDebug", "User: ${userLocation!!.latitude},${userLocation!!.longitude} -> Nearest: ${currentLoc?.id}")
 
             if (currentLoc != null) {
-                // Only fetch if we changed location to avoid spamming
                 if (currentLocationId != currentLoc.id) {
                     storyViewModel.fetchStoriesForLocation(currentLoc.id)
                 }
@@ -88,8 +80,6 @@ fun AudiosScreen(
         }
     }
 
-    // Update Indoor Status State
-    // When detection changes, immediately update the ViewModel state
     LaunchedEffect(isUserIndoor) {
         storyViewModel.setIndoorStatus(isUserIndoor)
     }
@@ -100,17 +90,13 @@ fun AudiosScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-
-            // Header
             Text(
                 text = "Stories",
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(16.dp)
             )
 
-            // Content Area
             if (currentLocationId == null) {
-                // LOCKED STATE
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -126,7 +112,6 @@ fun AudiosScreen(
                         if (isUserIndoor) {
                             Text("(Position Locked)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                         }
-                        // Debug text to visualize live updates
                         if (userLocation != null) {
                             Spacer(modifier = Modifier.height(16.dp))
                             FloatingActionButton(
@@ -139,7 +124,6 @@ fun AudiosScreen(
                     }
                 }
             } else {
-                // UNLOCKED STATE
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -158,6 +142,13 @@ fun AudiosScreen(
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
+                                if (isIndoor) {
+                                    Text(
+                                        text = "(GPS Position Locked)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                         }
 
@@ -167,13 +158,11 @@ fun AudiosScreen(
                     }
                 }
 
-                // ... (Rest of LazyColumn UI remains the same) ...
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
                 ) {
                     item {
-                        // Add Post Button Card...
                         Card(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             onClick = { navController.navigate(Routes.ADD_POST) },
@@ -214,7 +203,6 @@ fun AudiosScreen(
             }
         }
 
-        // ... (Dialogs and FABs remain the same) ...
         if (showAddLocationDialog) {
             AlertDialog(
                 onDismissRequest = { showAddLocationDialog = false },
