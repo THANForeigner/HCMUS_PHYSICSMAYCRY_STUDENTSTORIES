@@ -29,7 +29,6 @@ class AudioPlayerService : Service() {
         private set
     private lateinit var mediaSession: MediaSessionCompat
 
-    // State
     var currentAudioUrl: String? = null
     var currentStoryId: String? = null
     private var currentTitle: String = "Select a story"
@@ -60,7 +59,6 @@ class AudioPlayerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
 
-        // [CHANGED] Capture data sent by GeofenceBroadcastReceiver or AudioScreen
         intent?.getStringExtra(EXTRA_TITLE)?.let { currentTitle = it }
         intent?.getStringExtra(EXTRA_USER)?.let { currentUser = it }
         intent?.getStringExtra(EXTRA_LOCATION)?.let { currentLocationName = it }
@@ -119,11 +117,9 @@ class AudioPlayerService : Service() {
         // [IMPORTANT] Cancel the "Discovery" notification if we are playing that story
         // This makes sure the user doesn't see "Found: Story X" and "Playing: Story X" at the same time
         currentStoryId?.let { id ->
-            // The Geofence notification ID is based on locationId.hashCode()
             manager.cancel(id.hashCode())
         }
 
-        // Prepare Intent to open MainActivity (clicking the notification body)
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("notification_story_id", currentStoryId)
@@ -133,7 +129,6 @@ class AudioPlayerService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Prepare Intent to toggle Play/Pause (clicking the action button)
         val toggleIntent = Intent(this, AudioPlayerService::class.java).apply {
             action = if (isPlaying) ACTION_PAUSE else ACTION_RESUME
         }

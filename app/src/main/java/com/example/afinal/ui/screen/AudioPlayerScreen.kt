@@ -22,8 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.afinal.logic.AudioPlayerService
-import com.example.afinal.models.StoryModel
+import com.example.afinal.data.model.Story
 import com.example.afinal.models.StoryViewModel
+import android.util.Log
+import android.widget.Toast
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,43 +35,48 @@ fun AudioPlayerScreen(
     storyId: String,
     storyViewModel: StoryViewModel,
     audioService: AudioPlayerService?,
-    onStoryLoaded: (StoryModel) -> Unit
+    onStoryLoaded: (Story) -> Unit
 ) {
     val context = LocalContext.current
     val story = storyViewModel.getStory(storyId)
 
-    // Notify parent (MainActivity) which story is selected (for MiniPlayer)
     LaunchedEffect(story) {
         story?.let { onStoryLoaded(it) }
     }
 
-    // --- UI State ---
     var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var totalDuration by remember { mutableLongStateOf(0L) }
 
-    // --- 1. LOGIC: Load & Play Audio ---
-    // If the service is bound and the requested story is NOT the one currently playing, start it.
     LaunchedEffect(audioService, story) {
         if (audioService != null && story != null) {
-            // Check if we need to change the track
-            if (audioService.currentStoryId != story.id) {
-                val intent = Intent(context, AudioPlayerService::class.java).apply {
-                    action = AudioPlayerService.ACTION_PLAY
-                    putExtra(AudioPlayerService.EXTRA_AUDIO_URL, story.playableUrl)
-                    putExtra(AudioPlayerService.EXTRA_TITLE, story.name)
-                    putExtra(AudioPlayerService.EXTRA_USER, story.user)
-                    putExtra(AudioPlayerService.EXTRA_STORY_ID, story.id)
-                    putExtra(AudioPlayerService.EXTRA_LOCATION, story.locationName)
+            try {
+                if (story.audioUrl.isBlank()) {
+                    Log.e("AudioPlayerScreen", "Audio URL is empty for story: ${story.id}")
+                    Toast.makeText(context, "Invalid audio URL", Toast.LENGTH_SHORT).show()
+                    navController.popBackStack()
+                    return@LaunchedEffect
                 }
-                // Send Intent to Service to update metadata and start playing
-                context.startService(intent)
+
+                if (audioService.currentStoryId != story.id) {
+                    val intent = Intent(context, AudioPlayerService::class.java).apply {
+                        action = AudioPlayerService.ACTION_PLAY
+                        putExtra(AudioPlayerService.EXTRA_AUDIO_URL, story.audioUrl)
+                        putExtra(AudioPlayerService.EXTRA_TITLE, story.title.ifBlank { "Untitled" })
+                        putExtra(AudioPlayerService.EXTRA_USER, story.user_name.ifBlank { "Unknown" })
+                        putExtra(AudioPlayerService.EXTRA_STORY_ID, story.id)
+                        putExtra(AudioPlayerService.EXTRA_LOCATION, story.locationName.ifBlank { "" })
+                    }
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.e("AudioPlayerScreen", "Error starting audio service", e)
+                Toast.makeText(context, "Error playing audio: ${e.message}", Toast.LENGTH_SHORT).show()
+                navController.popBackStack()
             }
         }
     }
 
-    // --- 2. LOGIC: Update UI Loop ---
-    // Poll the service every 500ms to update the slider and timestamps
     LaunchedEffect(audioService) {
         while (true) {
             if (audioService != null) {
@@ -81,7 +88,6 @@ fun AudioPlayerScreen(
         }
     }
 
-    // --- UI SETUP ---
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -98,7 +104,21 @@ fun AudioPlayerScreen(
     ) { innerPadding ->
         if (story == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Loading audio information...", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        } else if (story.audioUrl.isBlank()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Audio not available", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = { navController.popBackStack() }) {
+                        Text("Go back")
+                    }
+                }
             }
         } else {
             Column(
@@ -108,7 +128,6 @@ fun AudioPlayerScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 1. IMAGE AREA
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -127,15 +146,13 @@ fun AudioPlayerScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 2. TEXT INFO
                 Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-                    Text(story.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text(story.user, style = MaterialTheme.typography.titleMedium)
+                    Text(story.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(story.user_name, style = MaterialTheme.typography.titleMedium)
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 3. SLIDER
                 Column(modifier = Modifier.fillMaxWidth()) {
                     val sliderValue = if (totalDuration > 0) currentPosition.toFloat() / totalDuration else 0f
 
@@ -143,7 +160,6 @@ fun AudioPlayerScreen(
                         value = sliderValue.coerceIn(0f, 1f),
                         onValueChange = { newPercent ->
                             val newPos = (newPercent * totalDuration).toLong()
-                            // Update local state immediately for smooth dragging
                             currentPosition = newPos
                             audioService?.seekTo(newPos.toInt())
                         },
@@ -160,7 +176,6 @@ fun AudioPlayerScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 4. CONTROLS
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,

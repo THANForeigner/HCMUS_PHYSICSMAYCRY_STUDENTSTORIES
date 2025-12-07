@@ -29,6 +29,7 @@ import com.example.afinal.models.StoryViewModel
 import com.example.afinal.logic.AudioPlayerService
 import com.example.afinal.models.StoryModel
 import com.google.firebase.auth.FirebaseAuth
+import com.example.afinal.data.model.Story
 
 object Routes {
     const val LOGIN = "login"
@@ -51,12 +52,10 @@ fun AppNavigation(
     locationViewModel: LocationViewModel,
     storyViewModel: StoryViewModel,
     audioService: AudioPlayerService?,
-    onStorySelected: (StoryModel) -> Unit
+    onStorySelected: (Story) -> Unit
 ) {
-    // This key matches the one used in LocationReceiver.sendDiscoveryNotification
     val notificationStoryId = startIntent?.getStringExtra("notification_story_id")
 
-    // Determine where to start based on Auth and Notifications
     val appStartDestination = if (FirebaseAuth.getInstance().currentUser != null) {
         Routes.MAIN_APP
     } else {
@@ -64,15 +63,13 @@ fun AppNavigation(
     }
 
     val finalStartDestination = if (notificationStoryId != null) {
-        Routes.MAIN_APP // Load Main App first to ensure correct back stack
+        Routes.MAIN_APP
     } else {
         appStartDestination
     }
 
-    // Handle Deep Link from Notification (Discovery)
     LaunchedEffect(notificationStoryId) {
         if (notificationStoryId != null) {
-            // Ensure we are in the main app, then push the player on top
             navController.navigate(Routes.MAIN_APP) {
                 popUpTo(Routes.MAIN_APP) { inclusive = true }
             }
@@ -95,7 +92,6 @@ fun AppNavigation(
             )
         }
         composable(Routes.ADD_POST) {
-            // Pass shared ViewModels to ensure we have the Location data
             AddPostScreen(
                 navController = navController,
                 locationViewModel = locationViewModel,
@@ -148,7 +144,6 @@ fun MainAppScreen(
             }
 
             composable(Routes.AUDIOS) {
-                // IMPORTANT: Pass the shared locationViewModel here
                 AudiosScreen(
                     navController = mainNavController,
                     storyViewModel = storyViewModel,

@@ -32,14 +32,14 @@ fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // 1. Khởi tạo FocusManager và các FocusRequester
+    // 1. Initialize FocusManager and FocusRequesters
     val focusManager = LocalFocusManager.current
     val passwordFocusRequester = remember { FocusRequester() }
     val confirmPasswordFocusRequester = remember { FocusRequester() }
 
-    // 2. Tách logic Register ra hàm riêng
+    // 2. Extract Register logic to separate function
     fun performRegister() {
-        focusManager.clearFocus() // Ẩn bàn phím
+        focusManager.clearFocus() // Hide keyboard
         if (password != confirmPassword) {
             errorMessage = "Passwords do not match"
         } else {
@@ -96,10 +96,10 @@ fun RegisterScreen(navController: NavController) {
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(passwordFocusRequester), // Gắn requester 1
+                .focusRequester(passwordFocusRequester),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Next // Vẫn là Next để xuống Confirm
+                imeAction = ImeAction.Next
             ),
             keyboardActions = KeyboardActions(
                 onNext = { confirmPasswordFocusRequester.requestFocus() }
@@ -118,10 +118,10 @@ fun RegisterScreen(navController: NavController) {
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(confirmPasswordFocusRequester), // Gắn requester 2
+                .focusRequester(confirmPasswordFocusRequester),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done // Kết thúc tại đây
+                imeAction = ImeAction.Done
             ),
             keyboardActions = KeyboardActions(
                 onDone = { performRegister() }

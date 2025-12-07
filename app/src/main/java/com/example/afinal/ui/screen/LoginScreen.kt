@@ -56,7 +56,7 @@ fun LoginScreen(navController: NavController) {
         Text("Student Stories", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 3. Cấu hình ô Email
+        // 3. Configure Email field
         OutlinedTextField(
             value = email,
             onValueChange = {

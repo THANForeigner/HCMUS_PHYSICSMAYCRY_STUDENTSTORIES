@@ -32,7 +32,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.afinal.models.LocationViewModel
-import com.example.afinal.models.StoryModel
+import com.example.afinal.data.model.Story
 import com.example.afinal.models.StoryViewModel
 import com.example.afinal.navigation.AppNavigation
 import com.example.afinal.navigation.Routes
@@ -49,10 +49,9 @@ class MainActivity : ComponentActivity() {
     private val locationViewModel: LocationViewModel by viewModels()
     private val storyViewModel: StoryViewModel by viewModels()
 
-    // Handle "New Intent" for when user clicks a notification while app is already open
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent) // Update the main intent
+        setIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +64,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val context = LocalContext.current
 
-                    // Permission State
+                    // Permission State & Launcher
                     var hasAllPermissions by remember {
                         mutableStateOf(
                             (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) &&
@@ -76,57 +75,36 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Permission Launcher
                     val permissionLauncher = rememberLauncherForActivityResult(
                         contract = ActivityResultContracts.RequestMultiplePermissions()
                     ) { permissions ->
                         val fine = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                        val bg = permissions[Manifest.permission.ACCESS_BACKGROUND_LOCATION] == true
-                        // Note: Android 11+ requires requesting Background permission separately/afterwards.
-                        // For simplicity here we check the result.
-
-                        if (fine) {
-                            // If we have fine location, we assume we can at least start foreground tracking
-                            hasAllPermissions = true
-                        }
+                        if (fine) hasAllPermissions = true
                     }
 
-                    // 1. Request Permissions on Start
                     LaunchedEffect(Unit) {
                         if (!hasAllPermissions) {
                             val req = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) req.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) req.add(Manifest.permission.POST_NOTIFICATIONS)
-
                             permissionLauncher.launch(req.toTypedArray())
                         }
                     }
 
-                    // 2. Start Background Location Tracking (The "App Turned Off" Logic)
                     LaunchedEffect(hasAllPermissions) {
                         if (hasAllPermissions) {
                             try {
                                 val client = LocationServices.getFusedLocationProviderClient(context)
-
-                                // Setup Request: Balanced Power for Background
-                                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15000) // 15 seconds
-                                    .setMinUpdateDistanceMeters(20f) // Only update if moved 20m
+                                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 15000)
+                                    .setMinUpdateDistanceMeters(20f)
                                     .build()
-
-                                // Setup PendingIntent -> Triggers LocationReceiver.kt
                                 val intent = Intent(context, LocationReceiver::class.java)
                                 val locationPendingIntent = PendingIntent.getBroadcast(
-                                    context,
-                                    0,
-                                    intent,
-                                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                                    context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
                                 )
-
                                 client.requestLocationUpdates(locationRequest, locationPendingIntent)
-                                Log.d("MainActivity", "Background Location Receiver Registered")
-
                             } catch (e: SecurityException) {
-                                Log.e("MainActivity", "Permission missing for updates", e)
+                                Log.e("MainActivity", "Permission missing", e)
                             }
                         }
                     }
@@ -134,7 +112,8 @@ class MainActivity : ComponentActivity() {
                     // --- 3. AUDIO SERVICE & UI LOGIC ---
                     var audioService by remember { mutableStateOf<AudioPlayerService?>(null) }
                     var isBound by remember { mutableStateOf(false) }
-                    var currentPlayingStory by remember { mutableStateOf<StoryModel?>(null) }
+                    var currentPlayingStory by remember { mutableStateOf<Story?>(null) }
+
                     var isPlaying by remember { mutableStateOf(false) }
 
                     val navController = rememberNavController()
@@ -176,7 +155,7 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                             AppNavigation(
                                 navController = navController,
-                                startIntent = intent, // Pass current intent (possibly from Notification)
+                                startIntent = intent,
                                 locationViewModel = locationViewModel,
                                 storyViewModel = storyViewModel,
                                 audioService = audioService,
@@ -186,8 +165,9 @@ class MainActivity : ComponentActivity() {
                             if (showMiniPlayer) {
                                 Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding)) {
                                     MiniPlayer(
-                                        title = currentPlayingStory!!.name,
-                                        user = currentPlayingStory!!.user,
+                                        title = currentPlayingStory!!.title,
+                                        user = currentPlayingStory!!.user_name,
+
                                         isPlaying = isPlaying,
                                         onPlayPause = { if (isPlaying) audioService?.pauseAudio() else audioService?.resumeAudio() },
                                         onClose = { audioService?.pauseAudio(); currentPlayingStory = null },

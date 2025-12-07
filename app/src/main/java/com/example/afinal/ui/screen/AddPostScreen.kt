@@ -103,9 +103,9 @@ object DataRepository {
 
                 val request = Request.Builder().url(finalUrl).post(multipart.build()).build()
                 val response = client.newCall(request).execute()
-                if (response.isSuccessful) "" else "Lỗi Server: ${response.code}"
+                if (response.isSuccessful) "" else "Server Error: ${response.code}"
             } catch (e: Exception) {
-                "Lỗi kết nối: ${e.message}"
+                "Connection Error: ${e.message}"
             }
         }
     }
@@ -123,7 +123,6 @@ object DataRepository {
     }
 }
 
-// --- MAIN SCREEN ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddPostScreen(
@@ -133,14 +132,17 @@ fun AddPostScreen(
     storyViewModel: StoryViewModel = viewModel()
 ) {
     val location by locationViewModel.location
-    var name by remember { mutableStateOf("") } // Dùng làm Title
+    val currentLocationId by storyViewModel.currentLocationId
+    val currentLocation by storyViewModel.currentLocation
+    val currentFloor by storyViewModel.currentFloor
+    var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var audioUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
     var ngrokUrl by remember { mutableStateOf("https://emergently-basipetal-marge.ngrok-free.dev") }
-    var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Audio, 1: Text
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var textInput by remember { mutableStateOf("") }
     var tagsInput by remember {
         mutableStateOf("Romance, Pet, Mysteries, Facilities information, Health, Food and drink, Social and communities, Personal experience, Warning, Study Hacks, Library Vibes, Confessions, Motivation, Gaming, Burnout, Emotional support")
@@ -152,7 +154,6 @@ fun AddPostScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Launchers
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? -> imageUri = uri }
     val audioPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? -> audioUri = uri }
 
@@ -181,10 +182,20 @@ fun AddPostScreen(
             val latStr = location?.latitude?.toString() ?: ""
             val lngStr = location?.longitude?.toString() ?: ""
 
+            val collectionPath = if (currentLocationId != null && currentLocation != null) {
+                if (currentLocation!!.type == "indoor") {
+                    "locations/locations/indoor_locations/${currentLocationId!!}/floor/${currentFloor}/posts"
+                } else {
+                    "locations/locations/outdoor_locations/${currentLocationId!!}/posts"
+                }
+            } else {
+                "records"
+            }
+
             val error = DataRepository.uploadData(
                 context = context,
                 ngrokUrl = ngrokUrl,
-                collectionName = "records",
+                collectionName = collectionPath,
                 title = name,
                 description = description,
                 tags = tagsInput,

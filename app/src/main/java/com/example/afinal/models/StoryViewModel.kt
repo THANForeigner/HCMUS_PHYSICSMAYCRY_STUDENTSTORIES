@@ -6,6 +6,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -14,7 +15,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlin.collections.iterator
+
+import com.example.afinal.data.model.Story
 
 class StoryViewModel : ViewModel() {
     private val _locations = mutableStateOf<List<LocationModel>>(emptyList())
@@ -24,10 +26,14 @@ class StoryViewModel : ViewModel() {
     private var _indoorList = listOf<LocationModel>()
     private var _outdoorList = listOf<LocationModel>()
 
-    private val _currentStories = mutableStateOf<List<StoryModel>>(emptyList())
-    val currentStories: State<List<StoryModel>> = _currentStories
-    private val _allStories = mutableStateOf<List<StoryModel>>(emptyList())
-    val allStories: State<List<StoryModel>> = _allStories
+    // Using Story class instead of StoryModel
+    private val _currentStories = mutableStateOf<List<Story>>(emptyList())
+    val currentStories: State<List<Story>> = _currentStories
+
+    // Using Story class instead of StoryModel
+    private val _allStories = mutableStateOf<List<Story>>(emptyList())
+    val allStories: State<List<Story>> = _allStories
+
     private val _isIndoor = mutableStateOf(false)
     val isIndoor: State<Boolean> = _isIndoor
     private val _currentFloor = mutableStateOf(1)
@@ -48,9 +54,70 @@ class StoryViewModel : ViewModel() {
         fetchAllStories()
     }
 
-    fun getStory(id: String): StoryModel? {
+    // Returns Story type
+    fun getStory(id: String): Story? {
         return _currentStories.value.find { it.id == id }
             ?: _allStories.value.find { it.id == id }
+    }
+
+    /**
+     * Get DocumentReference of story from Firestore
+     */
+    fun getStoryDocumentReference(storyId: String, locationId: String? = null): DocumentReference? {
+        val db = FirebaseFirestore.getInstance()
+        val locId = locationId ?: _currentLocationId.value
+
+        if (locId == null) {
+            // If no locationId, find story in list to get locationName
+            val story = getStory(storyId)
+            if (story == null) {
+                Log.e("StoryViewModel", "Cannot find story $storyId to get document reference")
+                return null
+            }
+            // Find location from locationName
+            val location = _locations.value.find { it.id == story.locationName }
+            if (location == null) {
+                Log.e("StoryViewModel", "Cannot find location ${story.locationName} for story $storyId")
+                return null
+            }
+            // Default floor = 1 because Story class doesn't store floor
+            return buildDocumentReference(db, storyId, location.id, location.type, 1)
+        }
+
+        val location = _locations.value.find { it.id == locId }
+        if (location == null) {
+            Log.e("StoryViewModel", "Cannot find location $locId")
+            return null
+        }
+
+        val floor = _currentFloor.value
+        return buildDocumentReference(db, storyId, locId, location.type, floor)
+    }
+
+    /**
+     * Get document path as string
+     */
+    fun getStoryDocumentPath(storyId: String, locationId: String? = null): String? {
+        return getStoryDocumentReference(storyId, locationId)?.path
+    }
+
+    private fun buildDocumentReference(
+        db: FirebaseFirestore,
+        storyId: String,
+        locationId: String,
+        locationType: String,
+        floor: Int
+    ): DocumentReference {
+        return if (locationType == "indoor") {
+            db.collection("locations").document("locations")
+                .collection("indoor_locations").document(locationId)
+                .collection("floor").document(floor.toString())
+                .collection("posts").document(storyId)
+        } else {
+            db.collection("locations").document("locations")
+                .collection("outdoor_locations").document(locationId)
+                .collection("posts").document(storyId)
+        }
     }
 
     fun setIndoorStatus(isIndoor: Boolean) {
@@ -66,7 +133,6 @@ class StoryViewModel : ViewModel() {
 
     fun clearLocation() {
         if (_currentLocationId.value != null) {
-            // Remove listener when clearing location to stop updates
             storyListener?.remove()
             storyListener = null
 
@@ -192,12 +258,9 @@ class StoryViewModel : ViewModel() {
                 processSnapshot(it.documents, null, isAllStories = true)
             }
         }
-
     }
 
     fun fetchStoriesForLocation(locationId: String, floor: Int = 1, forceRefresh: Boolean = false) {
-        // If we are already listening to this location/floor, do nothing (unless forced)
-        // The active listener will handle real-time updates (like new posts)
         if (!forceRefresh && _currentLocationId.value == locationId && _loadedFloor == floor && _currentStories.value.isNotEmpty()) {
             return
         }
@@ -232,7 +295,6 @@ class StoryViewModel : ViewModel() {
             if (snapshot == null) {
                 return@addSnapshotListener
             }
-            // Real-time update: this runs whenever data changes (including new posts)
             processSnapshot(snapshot.documents, locationId, isAllStories = false)
         }
         _loadedFloor = floor
@@ -244,49 +306,36 @@ class StoryViewModel : ViewModel() {
         locationId: String?,
         isAllStories: Boolean
     ) {
-        // Use viewModelScope to handle threading automatically
         viewModelScope.launch {
             val storage = FirebaseStorage.getInstance()
 
-            // 1. Process all documents in parallel using async
             val deferredStories = documents.map { doc ->
                 async {
                     val extractedLoc = locationId ?: doc.reference.path.split("/").getOrNull(3) ?: ""
 
-                    // [ADDED] Check if the document path contains "outdoor_locations"
-                    val isOutdoor = doc.reference.path.contains("outdoor_locations")
-
-                    // Safely convert document to object
+                    // Parse to Story class
                     val story = try {
-                        // [MODIFIED] Logic to conditionally set floor to null
-                        var model = doc.toObject(StoryModel::class.java)
+                        var model = doc.toObject(Story::class.java)
 
-                        if (isOutdoor && model != null) {
-                            model = model.copy(floor = null)
-                        }
-
-                        // Apply ID and Location Name to the model
-                        model?.copy(id = doc.id, locationName = extractedLoc)
-
+                        // Assign ID and locationName through .copy()
+                        model = model?.copy(id = doc.id, locationName = extractedLoc)
+                        model
                     } catch (e: Exception) {
                         Log.e("StoryViewModel", "Error parsing doc: ${doc.id}", e)
                         null
                     }
 
-                    // If story exists, resolve the URL
+                    // Process Audio URL (gs:// -> https://)
                     if (story != null) {
-                        if (story.audioUrl?.startsWith("gs://") == true) {
+                        if (story.audioUrl.startsWith("gs://")) {
                             try {
-                                // Convert Task to suspend function with .await()
                                 val uri = storage.getReferenceFromUrl(story.audioUrl).downloadUrl.await()
-                                story.playableUrl = uri.toString()
+                                // Update directly to audioUrl variable
+                                story.audioUrl = uri.toString()
                             } catch (e: Exception) {
                                 Log.e("StoryViewModel", "Error resolving audio URL for ${story.id}", e)
-                                // Fallback: keep original or set empty
-                                story.playableUrl = ""
+                                // Keep original or set empty on error
                             }
-                        } else {
-                            story.playableUrl = story.audioUrl ?: ""
                         }
                     }
 
@@ -294,12 +343,11 @@ class StoryViewModel : ViewModel() {
                 }
             }
 
-            // 2. Wait for all async operations to complete and filter out nulls
             val storiesList = deferredStories.awaitAll().filterNotNull()
             for (story in storiesList) {
                 Log.d("StoryDebug", "Fetched Story ID: ${story.id}")
             }
-            // 3. Update the state (this runs on the Main thread automatically in viewModelScope)
+
             if (isAllStories) {
                 _allStories.value = storiesList
                 Log.d("StoryViewModel", "Updated allStories with ${storiesList.size} items")
