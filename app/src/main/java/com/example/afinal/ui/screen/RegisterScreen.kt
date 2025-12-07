@@ -10,50 +10,91 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.afinal.models.AuthViewModel
 import com.example.afinal.navigation.Routes
-import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
+
+// Data class for Realtime Database
+data class User(
+    val id: String? = null,
+    val name: String? = null,
+    val email: String? = null,
+    val avatarUrl: String? = ""
+)
 
 @Composable
 fun RegisterScreen(navController: NavController) {
+    var name by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
-    val authViewModel: AuthViewModel = viewModel()
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
+
+    var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // 1. Initialize FocusManager and FocusRequesters
     val focusManager = LocalFocusManager.current
+    val nameFocusRequester = remember { FocusRequester() }
+    val emailFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
     val confirmPasswordFocusRequester = remember { FocusRequester() }
 
-    // 2. Extract Register logic to separate function
-    fun performRegister() {
-        focusManager.clearFocus() // Hide keyboard
-        if (password != confirmPassword) {
-            errorMessage = "Passwords do not match"
-        } else {
-            coroutineScope.launch {
-                val success = authViewModel.register(email, password)
-                if (success) {
+    val auth = remember { FirebaseAuth.getInstance() }
+    val database = remember { FirebaseDatabase.getInstance().getReference("users") }
+
+    fun saveUserToDatabase(userId: String) {
+        val user = User(id = userId, name = name, email = email, avatarUrl = "")
+        database.child(userId).setValue(user)
+            .addOnCompleteListener { task ->
+                isLoading = false
+                if (task.isSuccessful) {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 } else {
-                    errorMessage = "Registration failed. Please try again."
+                    errorMessage = "Failed to save user data: ${task.exception?.message}"
                 }
             }
+    }
+
+    fun performRegister() {
+        if (isLoading) return
+        focusManager.clearFocus()
+        errorMessage = null
+
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            errorMessage = "Please fill in all fields."
+            return
         }
+        if (password != confirmPassword) {
+            errorMessage = "Passwords do not match."
+            return
+        }
+
+        isLoading = true
+
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val userId = task.result.user?.uid
+                    if (userId != null) {
+                        saveUserToDatabase(userId)
+                    }
+                } else {
+                    isLoading = false
+                    val exception = task.exception
+                    errorMessage = if (exception?.message?.contains("already in use") == true) {
+                        "Email is already in use."
+                    } else {
+                        exception?.message ?: "Registration failed."
+                    }
+                }
+            }
     }
 
     Column(
@@ -63,10 +104,32 @@ fun RegisterScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Create an account", style = MaterialTheme.typography.headlineMedium)
+        Text("Create Account", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 3. Email -> Next -> Password
+        // Full Name Field
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                errorMessage = null
+            },
+            label = { Text("Full Name") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(nameFocusRequester),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { emailFocusRequester.requestFocus() }
+            ),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Email Field
         OutlinedTextField(
             value = email,
             onValueChange = {
@@ -74,18 +137,21 @@ fun RegisterScreen(navController: NavController) {
                 errorMessage = null
             },
             label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(emailFocusRequester),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next
             ),
             keyboardActions = KeyboardActions(
                 onNext = { passwordFocusRequester.requestFocus() }
-            )
+            ),
+            singleLine = true
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 4. Password -> Next -> Confirm Password
+        // Password Field
         OutlinedTextField(
             value = password,
             onValueChange = {
@@ -103,11 +169,12 @@ fun RegisterScreen(navController: NavController) {
             ),
             keyboardActions = KeyboardActions(
                 onNext = { confirmPasswordFocusRequester.requestFocus() }
-            )
+            ),
+            singleLine = true
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 5. Confirm Password -> Done -> Register
+        // Confirm Password Field
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = {
@@ -125,24 +192,39 @@ fun RegisterScreen(navController: NavController) {
             ),
             keyboardActions = KeyboardActions(
                 onDone = { performRegister() }
-            )
+            ),
+            singleLine = true
         )
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Sign Up Button
         Button(
             onClick = { performRegister() },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         ) {
-            Text("Sign up")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text(text = "Sign Up")
+            }
         }
+
+        // Error Message Display
         errorMessage?.let {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = it, color = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
+
         Spacer(modifier = Modifier.height(16.dp))
-        TextButton(
-            onClick = { navController.popBackStack() }
-        ) {
+        TextButton(onClick = { navController.popBackStack() }) {
             Text("Already have an account? Login")
         }
     }

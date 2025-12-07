@@ -33,6 +33,7 @@ import com.example.afinal.data.model.Story
 
 object Routes {
     const val LOGIN = "login"
+    const val FORGOT_PASSWORD = "forgot_password"
     const val REGISTER = "register"
     const val MAIN_APP = "main_app"
     const val HOME = "home"
@@ -80,6 +81,9 @@ fun AppNavigation(
     NavHost(navController = navController, startDestination = finalStartDestination) {
         composable(Routes.LOGIN) {
             LoginScreen(navController = navController)
+        }
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(navController)
         }
         composable(Routes.REGISTER) {
             RegisterScreen(navController = navController)

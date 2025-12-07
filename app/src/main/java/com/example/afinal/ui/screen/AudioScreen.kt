@@ -1,6 +1,11 @@
 package com.example.afinal.ui.screen
 
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,31 +17,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.afinal.data.model.Story
 import com.example.afinal.logic.LocationGPS
 import com.example.afinal.models.LocationViewModel
-import com.example.afinal.data.model.Story
 import com.example.afinal.models.StoryViewModel
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ultis.DistanceCalculator
 import com.example.afinal.ultis.IndoorDetector
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.alpha
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 import com.google.firebase.Timestamp
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 val STORY_TAGS = listOf(
     "Romance", "Pet", "Mysteries", "Facilities information",
@@ -63,13 +61,22 @@ fun AudiosScreen(
     val currentFloor by storyViewModel.currentFloor
     val currentStories by storyViewModel.currentStories
 
-    // Filter stories based on selected tag
     val filteredStories = remember(currentStories, selectedTag) {
-        if (selectedTag == null) {
+        val listToFilter = if (selectedTag == null) {
             currentStories
         } else {
             currentStories.filter { it.tags.contains(selectedTag) }
         }
+        listToFilter.sortedWith(Comparator { s1, s2 ->
+            val t1 = s1.created_at
+            val t2 = s2.created_at
+            when {
+                t1 == null && t2 == null -> 0
+                t1 == null -> 1
+                t2 == null -> -1
+                else -> t2.compareTo(t1)
+            }
+        })
     }
 
     val userLocation by locationViewModel.location
@@ -202,15 +209,15 @@ fun TagFilterBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
                     imageVector = Icons.Default.FilterList,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                                Text(
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
                     text = if (selectedTag == null) "Filter by topics (All)" else "Filtered by: $selectedTag",
                     style = MaterialTheme.typography.labelLarge,
                     color = if (selectedTag != null) MaterialTheme.colorScheme.primary else Color.Gray
@@ -352,8 +359,8 @@ fun LocationHeader(locationId: String, isIndoor: Boolean, floor: Int) {
 
 @Composable
 fun StoryList(stories: List<Story>, onAddStoryClick: () -> Unit, onStoryClick: (Story) -> Unit) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -390,12 +397,12 @@ fun StoryList(stories: List<Story>, onAddStoryClick: () -> Unit, onStoryClick: (
 fun FloorSelector(currentFloor: Int, onFloorSelected: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     FloatingActionButton(onClick = { expanded = true }, containerColor = MaterialTheme.colorScheme.primary) {
-                    Row(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        Icon(Icons.Default.Layers, null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Floor $currentFloor")
-                    }
-                }
+        Row(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Icon(Icons.Default.Layers, null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Floor $currentFloor")
+        }
+    }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         (1..11).forEach { floor ->
             DropdownMenuItem(text = { Text("Floor $floor") }, onClick = { onFloorSelected(floor); expanded = false })
@@ -507,4 +514,4 @@ fun Timestamp?.toNormalDate(): String {
     if (this == null) return "Updating..."
     val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
     return sdf.format(this.toDate())
-    }
+}
