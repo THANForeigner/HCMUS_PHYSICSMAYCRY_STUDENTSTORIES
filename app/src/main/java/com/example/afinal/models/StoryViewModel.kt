@@ -395,7 +395,7 @@ class StoryViewModel : ViewModel() {
             }
     }
 
-    fun addReaction(storyId: String, reaction: Reaction, locationId: String? = null) {
+    fun addReaction(storyId: String, reaction: Reaction, isNew: Boolean, locationId: String? = null) {
         val storyRef = getStoryDocumentReference(storyId, locationId)
         if (storyRef == null) {
             Log.e("StoryViewModel", "Cannot add reaction, story reference not found for story $storyId")
@@ -405,10 +405,45 @@ class StoryViewModel : ViewModel() {
         storyRef.collection("reactions").document(reaction.userId).set(reaction)
             .addOnSuccessListener {
                 Log.d("StoryViewModel", "Reaction added successfully")
+                if (isNew) {
+                    updateStoryReactionCount(storyId, 1)
+                }
             }
             .addOnFailureListener { e ->
                 Log.e("StoryViewModel", "Error adding reaction", e)
             }
+    }
+
+    fun removeReaction(storyId: String, userId: String, locationId: String? = null) {
+        val storyRef = getStoryDocumentReference(storyId, locationId)
+        if (storyRef == null) {
+            Log.e("StoryViewModel", "Cannot remove reaction, story reference not found for story $storyId")
+            return
+        }
+
+        storyRef.collection("reactions").document(userId).delete()
+            .addOnSuccessListener {
+                Log.d("StoryViewModel", "Reaction removed successfully")
+                updateStoryReactionCount(storyId, -1)
+            }
+            .addOnFailureListener { e ->
+                Log.e("StoryViewModel", "Error removing reaction", e)
+            }
+    }
+
+    private fun updateStoryReactionCount(storyId: String, delta: Int) {
+        val storiesToUpdate = listOf(_currentStories, _allStories)
+        for (storyListState in storiesToUpdate) {
+            val storyList = storyListState.value
+            val storyIndex = storyList.indexOfFirst { it.id == storyId }
+            if (storyIndex != -1) {
+                val story = storyList[storyIndex]
+                val updatedStory = story.copy(reactionsCount = story.reactionsCount + delta)
+                val updatedList = storyList.toMutableList()
+                updatedList[storyIndex] = updatedStory
+                storyListState.value = updatedList
+            }
+        }
     }
 
     fun getComments(storyId: String, locationId: String? = null) {
