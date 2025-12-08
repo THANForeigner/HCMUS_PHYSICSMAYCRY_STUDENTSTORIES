@@ -10,7 +10,8 @@ data class Story(
     val user_name: String = "",
     val tags: List<String> = emptyList(),
     val created_at: Timestamp? = null,
-    val is_finished: Boolean = false,
+    @get:PropertyName("is_finished") @set:PropertyName("is_finished")
+    var isFinished: Boolean = false,
 
     @get:PropertyName("audio_url") @set:PropertyName("audio_url")
     var audioUrl: String = "",
