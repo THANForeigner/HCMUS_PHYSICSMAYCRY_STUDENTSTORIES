@@ -17,6 +17,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -56,6 +58,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             FINALTheme {
                 Surface(
@@ -151,7 +154,9 @@ class MainActivity : ComponentActivity() {
                     val showMiniPlayer = currentPlayingStory != null && !isAudioPlayerScreen
                     val bottomPadding = if (currentRoute == Routes.MAIN_APP) 80.dp else 0.dp
 
-                    Scaffold { innerPadding ->
+                    Scaffold(
+                        containerColor = Color.Transparent // 1. Set Scaffold trong suốt
+                    ){ innerPadding ->
                         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                             AppNavigation(
                                 navController = navController,

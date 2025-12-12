@@ -1,137 +1,190 @@
 package com.example.afinal.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import com.example.afinal.models.StoryViewModel
+import com.example.afinal.models.LocationViewModel
 import com.example.afinal.navigation.Routes
-import com.example.afinal.ui.theme.FINALTheme
-import com.example.afinal.data.repository.StoryRepository
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapUiSettings
-import androidx.compose.runtime.remember
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
+import com.example.afinal.ui.component.StoryCard
+import com.example.afinal.ui.component.*
+import com.example.afinal.ui.theme.AppGradients
 
 @Composable
-fun HomeScreen(navController: NavController) {
-    val featuredStory = StoryRepository.getFeaturedStory()
-    val nearbyStories = StoryRepository.getNearbyStories()
+fun HomeScreen(
+    storyViewModel: StoryViewModel,
+    onNavigateToMap: () -> Unit,
+    onNavigateToAudios: () -> Unit,
+    onStoryClick: (String) -> Unit
+) {
+    val trendingStories by storyViewModel.topTrendingStories
 
-    val locationLatLng = if (featuredStory != null) {
-        LatLng(featuredStory.latitude, featuredStory.longitude)
-    } else {
-        LatLng(10.762622, 106.660172)
-    }
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(locationLatLng, 16f)
-    }
-    LaunchedEffect(locationLatLng) {
-        cameraPositionState.animate(
-            CameraUpdateFactory.newLatLngZoom(locationLatLng, 16f)
-        )
-    }
-
-    LazyColumn(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(Color(0xFFF8F9FA))
     ) {
-        item {
-            Text("Student Stories!", style = MaterialTheme.typography.headlineSmall)
-            Spacer(modifier = Modifier.height(16.dp))
+        // --- LAYER 1: GRADIENT BACKGROUND ---
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(400.dp)
+                .background(brush = AppGradients.Purple)
+        )
 
-            Text("Your location:", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            ) {
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    uiSettings = MapUiSettings(
-                        zoomControlsEnabled = false,
-                        myLocationButtonEnabled = false,
-                        rotationGesturesEnabled = false
-                    )
+        // --- LAYER 2: SCROLLABLE CONTENT ---
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 100.dp)
+        ) {
+            // A. Header Text & Welcome
+            item {
+                Column(
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 60.dp, bottom = 24.dp)
                 ) {
-                    Marker(
-                        state = remember { MarkerState(position = locationLatLng) },
-                        title = featuredStory?.locationName ?: "Your location",
-                        snippet = "You are here"
+                    Icon(
+                        imageVector = Icons.Default.Headphones,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Title
+                    Text(
+                        text = "Student Stories",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Slogan
+                    Text(
+                        text = "Discover the hidden tales of your school",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.9f)
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            if (featuredStory != null) {
-                Text(
-                    text = "📍 ${featuredStory.locationName}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text("Available stories:", style = MaterialTheme.typography.titleMedium)
-
-            if (featuredStory != null) {
-                Card(
+            // B. Action Buttons (Explore Map / Browse Stories)
+            item {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    onClick = {
-                        navController.navigate("${Routes.AUDIO_PLAYER}/${featuredStory.id}")
-                    }
+                        .padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(featuredStory.title, style = MaterialTheme.typography.titleMedium)
-                        Text(featuredStory.description)
+                    // 1. MAP
+                    DashboardCardButton(
+                        title = "Explore Map",
+                        icon = Icons.Default.Map,
+                        iconColor = Color(0xFF00BFA5), // Teal
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToMap
+                    )
+
+                    // 2. STORIES
+                    DashboardCardButton(
+                        title = "Browse Stories",
+                        icon = Icons.Default.Headphones,
+                        iconColor = Color(0xFFFF4081), // Pink
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToAudios
+                    )
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(32.dp)) }
+
+            // C. White Sheet Container
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                        .background(Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        // Title Section: Trending
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(AppGradients.Orange),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.TrendingUp,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Trending Stories",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = Color(0xFF2D2D2D)
+                            )
+                        }
+
+                        // Loading State
+                        if (trendingStories.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(150.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Nearby location:", style = MaterialTheme.typography.titleMedium)
-        }
-
-        items(nearbyStories) { story ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                onClick = {
-                    navController.navigate("${Routes.AUDIO_PLAYER}/${story.id}")
+            // D. List Items
+            items(trendingStories) { story ->
+                // Wrapper Box
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 24.dp)
+                ) {
+                    StoryCard(
+                        story = story,
+                        onClick = {
+                            onStoryClick(story.id)
+                        }
+                    )
                 }
-            ) {
-                Text(story.title, modifier = Modifier.padding(16.dp))
+            }
+
+            // E. Footer Filler
+            item {
+                Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color.White))
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewHomeScreen() {
-    FINALTheme() {
-        HomeScreen(navController = rememberNavController())
     }
 }

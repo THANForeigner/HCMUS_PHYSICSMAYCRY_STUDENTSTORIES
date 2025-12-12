@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,9 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.afinal.data.model.Story
@@ -32,11 +29,7 @@ import com.example.afinal.models.StoryViewModel
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ultis.DistanceCalculator
 import com.example.afinal.ultis.IndoorDetector
-import com.google.firebase.Timestamp
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
+import com.example.afinal.ui.component.StoryCard
 val STORY_TAGS = listOf(
     "Romance", "Pet", "Mysteries", "Facilities information",
     "Health", "Food and drink", "Social and communities",
@@ -440,166 +433,4 @@ fun StoryList(stories: List<Story>, onAddStoryClick: () -> Unit, onStoryClick: (
             StoryCard(story = story, onClick = { onStoryClick(story) })
         }
     }
-}
-
-@Composable
-fun StoryCard(story: Story, onClick: () -> Unit) {
-    val isProcessing : Boolean = !story.isFinished
-    Card(
-        onClick = { if (!isProcessing) onClick() },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isProcessing) Color(0xFF2C2C2C) else Color(0xFF1E1E1E)
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (isProcessing) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Text(
-                    text = story.title.ifBlank { if (isProcessing) "New Story Uploading..." else "Untitled" },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isProcessing) Color.Gray else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                )
-                if (isProcessing) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        null,
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            if (isProcessing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "AI is generating content...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontStyle = FontStyle.Italic
-                        )
-                    }
-                }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Person, null, Modifier.size(14.dp), tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        story.user_name.ifBlank { "Unknown" },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Icon(Icons.Default.CalendarToday, null, Modifier.size(12.dp), tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = story.created_at.toNormalDate(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = story.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(modifier = Modifier.weight(1f)) {
-                        story.tags.take(3).forEach { tag ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.padding(end = 6.dp)
-                            ) {
-                                Text(
-                                    text = tag,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.FavoriteBorder,
-                            null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        // Placeholder for reactions count
-                        Text(
-                            text = story.reactionsCount.toString(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Icon(
-                            Icons.Default.ModeComment,
-                            null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        // Placeholder for comments count
-                        Text(
-                            text = story.commentsCount.toString(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Icon(
-                        Icons.Default.PlayCircleOutline,
-                        null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-fun Timestamp?.toNormalDate(): String {
-    if (this == null) return "Updating..."
-    val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-    return sdf.format(this.toDate())
 }

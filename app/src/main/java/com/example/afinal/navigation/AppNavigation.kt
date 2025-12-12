@@ -144,15 +144,43 @@ fun MainAppScreen(
             startDestination = Routes.HOME,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Routes.HOME) { HomeScreen(navController = mainNavController) }
+            // --- SỬA ĐOẠN NÀY ---
+            composable(Routes.HOME) {
+                HomeScreen(
+                    storyViewModel = storyViewModel,
+                    // 1. Chuyển tab Map (Dùng bottomNavController)
+                    onNavigateToMap = {
+                        bottomNavController.navigate(Routes.MAP) {
+                            popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    // 2. Chuyển tab Audios (Dùng bottomNavController)
+                    onNavigateToAudios = {
+                        bottomNavController.navigate(Routes.AUDIOS) {
+                            popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    // 3. Mở Player (Dùng mainNavController - Vì Player nằm ngoài BottomBar)
+                    onStoryClick = { storyId ->
+                        mainNavController.navigate("${Routes.AUDIO_PLAYER}/$storyId")
+                    }
+                )
+            }
 
             composable(Routes.MAP) {
-                MapScreen(navController = bottomNavController, storyViewModel = storyViewModel)
+                MapScreen(
+                    navController = bottomNavController,
+                    storyViewModel = storyViewModel
+                )
             }
 
             composable(Routes.AUDIOS) {
                 AudiosScreen(
-                    navController = mainNavController,
+                    navController = mainNavController, // AudiosScreen có thể giữ nguyên nếu nó chỉ mở Player
                     storyViewModel = storyViewModel,
                     locationViewModel = locationViewModel
                 )
@@ -171,7 +199,6 @@ fun BottomNavigationBar(navController: NavController) {
         BottomNavItem("Map", Routes.MAP, Icons.Default.Map),
         BottomNavItem("Audio", Routes.AUDIOS, Icons.Default.Headphones),
         BottomNavItem("User", Routes.USER, Icons.Default.Person),
-        BottomNavItem("Barometer", Routes.BAROMETER, Icons.Default.Thermostat)
     )
 
     NavigationBar {

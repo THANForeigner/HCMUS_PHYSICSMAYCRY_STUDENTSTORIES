@@ -36,6 +36,12 @@ class StoryViewModel : ViewModel() {
     private val _allStories = mutableStateOf<List<Story>>(emptyList())
     val allStories: State<List<Story>> = _allStories
 
+    val topTrendingStories = derivedStateOf {
+        _allStories.value.sortedByDescending { story ->
+            story.reactionsCount + story.commentsCount
+        }.take(3)
+    }
+
     private val _comments = mutableStateOf<List<Comment>>(emptyList())
     val comments: State<List<Comment>> = _comments
 
