@@ -76,7 +76,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
 
     LaunchedEffect(myLocation, locations) {
         if (locations.isNotEmpty() && myLocation != null) {
-            val targetLocation = DistanceCalculator.findCurrentLocation(
+            val targetLocation = DistanceCalculator.findNearestLocation(
                 userLat = myLocation!!.latitude,
                 userLng = myLocation!!.longitude,
                 candidates = locations
