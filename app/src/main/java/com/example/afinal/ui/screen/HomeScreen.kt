@@ -45,6 +45,7 @@ fun HomeScreen(
     val trendingStories by storyViewModel.topTrendingStories
     val hotLocations by storyViewModel.hotLocations
     val allStories by storyViewModel.allStories
+    val recommendedStories by storyViewModel.recommendedStories
 
     // Config News
     val targetNewsTags = listOf("Announcement", "Facilities information", "Social and communities", "Warning")
@@ -56,6 +57,7 @@ fun HomeScreen(
     val fireGradient = Brush.linearGradient(listOf(Color(0xFFFF8008), Color(0xFFFFC837)))
     val newsGradient = Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF0072FF)))
     val locationGradient = Brush.linearGradient(listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0)))
+    val recommendGradient = Brush.linearGradient(listOf(Color(0xFF43e97b), Color(0xFF38f9d7)))
 
     Box(
         modifier = Modifier
@@ -142,7 +144,32 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(32.dp))
                         }
 
-                        // --- SECTION 2: TRENDING STORIES ---
+                        // --- SECTION 2: RECOMMENDED FOR YOU ---
+                        SectionHeader(title = "Recommended For You", icon = Icons.Default.Star, gradient = recommendGradient)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (recommendedStories.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(recommendedStories) { story ->
+                                    Box(modifier = Modifier.fillParentMaxWidth(0.9f)) {
+                                        StoryCard(
+                                            story = story,
+                                            onClick = { onStoryClick(story.id) }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(32.dp))
+                        }
+
+                        // --- SECTION 3: TRENDING STORIES ---
                         SectionHeader(title = "Trending Stories", icon = Icons.Default.LocalFireDepartment, gradient = fireGradient)
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -167,7 +194,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(32.dp))
                         }
 
-                        // --- SECTION 3: HOT LOCATIONS ---
+                        // --- SECTION 4: HOT LOCATIONS ---
                         SectionHeader(title = "Hot Locations", icon = Icons.Default.Star, gradient = locationGradient)
                         Spacer(modifier = Modifier.height(16.dp))
 

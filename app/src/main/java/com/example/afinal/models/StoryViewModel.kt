@@ -25,55 +25,131 @@ import com.example.afinal.data.network.RetrofitClient
 
 
 
+import com.example.afinal.data.model.RecommendRequest
+
+
+
+import com.example.afinal.data.model.toStory
+
+
+
+
+
+
+
 class StoryViewModel : ViewModel() {
 
+
+
     private val _locations = mutableStateOf<List<LocationModel>>(emptyList())
+
+
 
     val locations: State<List<LocationModel>> = _locations
 
 
 
+
+
+
+
     // Helper lists to store the latest data from each collection separately
 
+
+
     private var _indoorList = listOf<LocationModel>()
+
+
 
     private var _outdoorList = listOf<LocationModel>()
 
 
 
+
+
+
+
     // Using Story class instead of StoryModel
 
+
+
     private val _currentStories = mutableStateOf<List<Story>>(emptyList())
+
+
 
     val currentStories: State<List<Story>> = _currentStories
 
 
 
+
+
+
+
     // Using Story class instead of StoryModel
 
+
+
     private val _allStories = mutableStateOf<List<Story>>(emptyList())
+
+
 
     val allStories: State<List<Story>> = _allStories
 
 
 
+
+
+
+
+    private val _recommendedStories = mutableStateOf<List<Story>>(emptyList())
+
+
+
+    val recommendedStories: State<List<Story>> = _recommendedStories
+
+
+
+
+
+
+
     val topTrendingStories = derivedStateOf {
+
+
 
         _allStories.value.sortedByDescending { story ->
 
+
+
             story.reactionsCount + story.commentsCount
 
+
+
         }.take(5)
+
+
 
     }
 
 
 
+
+
+
+
     val hotLocations = derivedStateOf {
+
+
 
         val stories = _allStories.value
 
+
+
         val locs = _locations.value
+
+
+
+
 
 
 
@@ -81,45 +157,91 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
         locs.filter { locationCounts.containsKey(it.id) }
+
+
 
             .sortedByDescending { locationCounts[it.id] ?: 0 }
 
+
+
             .take(5)
 
+
+
     }
+
+
+
+
 
 
 
     private val _comments = mutableStateOf<List<Comment>>(emptyList())
 
+
+
     val comments: State<List<Comment>> = _comments
+
+
+
+
 
 
 
     private val _reactions = mutableStateOf<List<Reaction>>(emptyList())
 
+
+
     val reactions: State<List<Reaction>> = _reactions
+
+
+
+
 
 
 
     private val _isIndoor = mutableStateOf(false)
 
+
+
     val isIndoor: State<Boolean> = _isIndoor
+
+
 
     private val _currentFloor = mutableStateOf(1)
 
+
+
     val currentFloor: State<Int> = _currentFloor
+
+
 
     private val _currentLocationId = mutableStateOf<String?>(null)
 
+
+
     val currentLocationId: State<String?> = _currentLocationId
+
+
 
     val currentLocation = derivedStateOf {
 
+
+
         _locations.value.find { it.id == _currentLocationId.value }
 
+
+
     }
+
+
+
+
 
 
 
@@ -127,17 +249,105 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
     // Track the active listener so we can remove it when switching locations
+
+
 
     private var storyListener: ListenerRegistration? = null
 
 
 
+
+
+
+
     init {
+
+
 
         fetchLocations()
 
+
+
         fetchAllStories()
+
+
+
+        fetchRecommendations("test_user") // TODO: Replace with actual user ID
+
+
+
+    }
+
+
+
+
+
+
+
+    fun fetchRecommendations(userId: String) {
+
+
+
+        viewModelScope.launch {
+
+
+
+            try {
+
+
+
+                val request = RecommendRequest(userId = userId)
+
+
+
+                val response = RetrofitClient.api.getRecommendations(request)
+
+
+
+                if (response.isSuccessful) {
+
+
+
+                    val audioItems = response.body()?.results ?: emptyList()
+
+
+
+                    _recommendedStories.value = audioItems.map { it.toStory() }
+
+
+
+                } else {
+
+
+
+                    Log.e("StoryViewModel", "Failed to fetch recommendations: ${response.errorBody()?.string()}")
+
+
+
+                }
+
+
+
+            } catch (e: Exception) {
+
+
+
+                Log.e("StoryViewModel", "Error fetching recommendations", e)
+
+
+
+            }
+
+
+
+        }
+
+
 
     }
 

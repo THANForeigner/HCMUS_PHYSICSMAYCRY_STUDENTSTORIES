@@ -49,6 +49,19 @@ data class AudioItem(
   }
 }
 
+fun AudioItem.toStory(): Story {
+    return Story(
+        id = this.firestoreId,
+        title = this.title,
+        description = this.finalText,
+        audioUrl = this.audioUrl,
+        imageUrl = this.imageUrl ?: "",
+        user_name = "AI Recommendation",
+        locationName = if (this.isDiscovery) "Khám phá mới" else "Gợi ý cho bạn",
+        tags = this.tags
+    )
+}
+
 data class ApiResponse(
         val results: List<AudioItem>,
         val type: String?, // "hybrid_smart", "cold_start_latest", ...
