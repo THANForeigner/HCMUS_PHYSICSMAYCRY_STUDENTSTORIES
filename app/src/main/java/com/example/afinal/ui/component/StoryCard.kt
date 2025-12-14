@@ -122,7 +122,7 @@ private fun CompletedStateView(story: Story) {
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = story.user_name.ifBlank { "Unknown Author" },
+            text = story.user_name.ifBlank { "Anonymous" },
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )

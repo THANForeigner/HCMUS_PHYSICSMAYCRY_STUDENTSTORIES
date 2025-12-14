@@ -188,7 +188,7 @@ fun MainAppScreen(
                 )
             }
 
-            composable(Routes.USER) { UserScreen(mainNavController = mainNavController) }
+            composable(Routes.USER) { UserScreen(mainNavController = mainNavController, storyViewModel = storyViewModel) }
             composable(Routes.BAROMETER) { BarometerScreen() }
         }
     }

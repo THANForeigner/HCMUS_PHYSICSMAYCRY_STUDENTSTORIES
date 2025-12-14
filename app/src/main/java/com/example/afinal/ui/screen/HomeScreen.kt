@@ -51,14 +51,14 @@ fun HomeScreen(
     val targetNewsTags = listOf("School Important Announcement")
     val newsStories = allStories.filter { story ->
         story.tags.any { tag -> targetNewsTags.contains(tag) }
-    }.sortedByDescending { it.id }.take(5)
+    }.sortedByDescending { it.created_at }.take(5)
 
     // Config drl hunting
     val trainingScoreHunting = listOf("Social Activities", "Seminar", "After-class Activities",
         "Volunteer Campaigns", "Online Activities")
     val trainingStoriesHunting = allStories.filter { story ->
         story.tags.any { tag -> trainingScoreHunting.contains(tag) }
-    }.sortedByDescending { it.id }.take(5)
+    }.sortedByDescending { it.created_at }.take(5)
 
     // 3. Gradients & Colors
     val fireGradient = Brush.linearGradient(listOf(Color(0xFFFF8008), Color(0xFFFFC837)))

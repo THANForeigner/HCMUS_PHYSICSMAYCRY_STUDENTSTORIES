@@ -13,17 +13,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -34,6 +39,9 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ui.theme.AppGradients
+import com.example.afinal.models.StoryViewModel
+import com.example.afinal.navigation.AppNavigation
+import com.example.afinal.ui.component.StoryCard
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
@@ -47,13 +55,25 @@ data class UserProfile(
 )
 
 @Composable
-fun UserScreen(mainNavController: NavController) {
-    // --- Logic Giữ Nguyên ---
+fun UserScreen(
+    mainNavController: NavController,
+    storyViewModel: StoryViewModel
+) {
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUser = auth.currentUser
     val database = remember { FirebaseDatabase.getInstance().getReference("users") }
     val storageRef = remember { FirebaseStorage.getInstance().reference }
     val context = LocalContext.current
+
+    val allStories by storyViewModel.allStories
+    val myStories = remember(allStories, currentUser) {
+        if (currentUser != null) {
+            allStories.filter { it.user_id == currentUser.uid }
+                .sortedByDescending { it.created_at }
+        } else {
+            emptyList()
+        }
+    }
 
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -102,21 +122,16 @@ fun UserScreen(mainNavController: NavController) {
         }
     }
 
-    // --- UI Mới ---
-
-    // Màu gradient giống mẫu (Tím/Hồng)
-    val gradientColors = AppGradients.userScreen
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA)) // Màu nền xám rất nhạt cho phần dưới
+            .background(Color(0xFFF8F9FA))
     ) {
-        // 1. Phần nền Gradient ở trên cùng (Header Background)
+        // 1. (Header Background)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(280.dp) // Chiều cao phủ xuống dưới Card một chút
+                .height(280.dp)
                 .background(
                     brush = AppGradients.userScreen
                 )
@@ -135,11 +150,10 @@ fun UserScreen(mainNavController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 40.dp, bottom = 20.dp), // Padding cho status bar
+                    .padding(top = 40.dp, bottom = 20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon ẩn để cân bằng layout (nếu cần) hoặc Text căn giữa
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = null,
@@ -255,30 +269,59 @@ fun UserScreen(mainNavController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- Section: Your Stories (Empty List) ---
+            // --- Section: Your Stories ---
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Your Stories",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
-                )
-
-                // Placeholder cho Empty List
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp) // Chiều cao tạm
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.Transparent), // Trong suốt để thấy nền
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "No stories yet",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Your Stories (${myStories.size})",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
                     )
+                }
+
+                if (myStories.isEmpty()) {
+                    // Empty State
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(120.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White)
+                            .border(1.dp, Color.LightGray.copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.PostAdd, null, tint = Color.Gray)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "You haven't posted any stories yet.",
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                } else {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(myStories) { story ->
+                            Box(modifier = Modifier.fillParentMaxWidth()) {
+                                StoryCard(
+                                    story = story,
+                                    onClick = { mainNavController.navigate("${Routes.AUDIO_PLAYER}/${story.id}") }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

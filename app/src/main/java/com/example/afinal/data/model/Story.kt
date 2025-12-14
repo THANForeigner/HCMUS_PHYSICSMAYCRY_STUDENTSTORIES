@@ -9,6 +9,7 @@ data class Story(
     val title: String = "",
     val description: String = "",
     val user_name: String = "",
+    val user_id: String = "",
     val tags: List<String> = emptyList(),
     val created_at: Timestamp? = null,
     @get:PropertyName("is_finished") @set:PropertyName("is_finished")
