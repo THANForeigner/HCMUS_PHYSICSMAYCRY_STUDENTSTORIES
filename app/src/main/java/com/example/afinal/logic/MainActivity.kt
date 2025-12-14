@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -40,7 +39,6 @@ import com.example.afinal.navigation.AppNavigation
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ui.screen.MiniPlayer
 import com.example.afinal.ui.theme.FINALTheme
-import com.example.afinal.ultis.LocationReceiver
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority

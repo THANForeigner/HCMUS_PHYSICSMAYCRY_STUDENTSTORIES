@@ -42,7 +42,7 @@
             android:foregroundServiceType="mediaPlayback" />
 
         <receiver
-            android:name=".ultis.LocationReceiver"
+            android:name=".logic.LocationReceiver"
             android:exported="true"
             android:enabled="true" />
 

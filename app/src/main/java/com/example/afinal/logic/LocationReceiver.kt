@@ -1,5 +1,4 @@
-package com.example.afinal.ultis
-
+package com.example.afinal.logic
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -10,17 +9,24 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.afinal.R
+import com.example.afinal.data.model.RecommendRequest
+import com.example.afinal.data.model.AudioItem // [THÊM] Import AudioItem
+import com.example.afinal.data.model.ApiResponse // [THÊM] Import ApiResponse
+import com.example.afinal.data.network.RetrofitClient
 import com.example.afinal.logic.AudioPlayerService
 import com.example.afinal.logic.MainActivity
 import com.example.afinal.models.LocationModel
+import com.example.afinal.ultis.DistanceCalculator
 import com.google.android.gms.location.LocationResult
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
+import retrofit2.Response // [THÊM] Import Retrofit Response
 class LocationReceiver : BroadcastReceiver() {
 
     companion object {
@@ -35,6 +41,7 @@ class LocationReceiver : BroadcastReceiver() {
 
             Log.d(TAG, ">>> Background Location: ${location.latitude}, ${location.longitude}")
 
+            // Giữ cho BroadcastReceiver sống đủ lâu để chạy Coroutine
             val pendingResult = goAsync()
 
             CoroutineScope(Dispatchers.IO).launch {
@@ -53,6 +60,7 @@ class LocationReceiver : BroadcastReceiver() {
         val db = FirebaseFirestore.getInstance()
         val allLocations = mutableListOf<LocationModel>()
 
+        // 1. Lấy danh sách địa điểm từ Firestore để so sánh khoảng cách
         val collections = mapOf("indoor_locations" to "indoor", "outdoor_locations" to "outdoor")
 
         for ((collectionName, type) in collections) {
@@ -62,8 +70,6 @@ class LocationReceiver : BroadcastReceiver() {
             for (doc in snapshot.documents) {
                 val lLat = doc.getDouble("latitude")
                 val lLng = doc.getDouble("longitude")
-
-                // [FETCH NEW FIELDS FOR ZONES]
                 val isZone = doc.getBoolean("zone") ?: false
 
                 val lat1 = doc.getDouble("latitude1"); val lng1 = doc.getDouble("longitude1")
@@ -90,19 +96,69 @@ class LocationReceiver : BroadcastReceiver() {
             }
         }
 
-        // [USE CENTRALIZED DISTANCE LOGIC]
-        // UPDATED: Use findNearestLocation to support distance-to-edge calculation for zones
+        // 2. Tìm địa điểm gần nhất
         val currentLoc = DistanceCalculator.findNearestLocation(lat, lng, allLocations)
 
         if (currentLoc != null) {
-            Log.d(TAG, ">>> Entered Location: ${currentLoc.id}. Fetching story...")
-            fetchFirstStoryAndNotify(context, currentLoc)
+            Log.d(TAG, ">>> Entered Location: ${currentLoc.id}. Starting logic...")
+            // Gọi hàm xử lý logic: Recommend -> Fallback
+            fetchRecommendationOrLatestStory(context, currentLoc)
         } else {
             Log.d(TAG, ">>> No locations match.")
         }
     }
 
-    private suspend fun fetchFirstStoryAndNotify(context: Context, location: LocationModel) {
+    /**
+     * Logic:
+     * 1. Gọi API Recommend (giống StoryViewModel).
+     * 2. Nếu có kết quả -> Notify Story đầu tiên.
+     * 3. Nếu rỗng -> Lấy story mới nhất từ Firestore.
+     */
+    private suspend fun fetchRecommendationOrLatestStory(context: Context, location: LocationModel) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: "test_user"
+
+        // --- BƯỚC 1: GỌI API RECOMMENDATION ---
+        try {
+            Log.d(TAG, "Fetching recommendations for user: $userId at ${location.locationName}")
+            val request = RecommendRequest(userId = userId, nameBuilding = location.locationName)
+
+            // Gọi API
+            val response: Response<ApiResponse> = RetrofitClient.api.getRecommendations(request)
+
+            // [SỬA] Đã có import retrofit2.Response nên isSuccessful sẽ hoạt động
+            if (response.isSuccessful) {
+                val apiResponse = response.body() // Lấy body
+                val results = apiResponse?.results
+
+                if (!results.isNullOrEmpty()) {
+                    val firstRecommend: AudioItem = results[0]
+                    Log.d(TAG, ">>> Found Recommendation: ${firstRecommend.title}")
+
+                    // [SỬA] Dùng .audioUrl thay vì .audio_url
+                    val resolvedAudioUrl = resolveAudioUrl(firstRecommend.audioUrl)
+
+                    if (resolvedAudioUrl.isNotEmpty()) {
+                        sendDiscoveryNotification(
+                            context = context,
+                            locationId = location.id,
+                            storyId = firstRecommend.firestoreId, // [SỬA] Dùng .firestoreId thay vì .id
+                            title = firstRecommend.title,
+                            user = firstRecommend.userName ?: "Anonymous", // [SỬA] Dùng .userName (hoặc fallback)
+                            audioUrl = resolvedAudioUrl,
+                            isRecommend = true
+                        )
+                        return
+                    }
+                }
+            } else {
+                Log.e(TAG, "Recommend API failed code: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching recommendations API", e)
+        }
+
+        // --- BƯỚC 2: FALLBACK (DỰ PHÒNG) - LẤY STORY MỚI NHẤT TỪ FIRESTORE ---
+        Log.d(TAG, ">>> Fallback to Firestore (Fetching Latest Story)")
         val db = FirebaseFirestore.getInstance()
 
         val docRef = if (location.type == "indoor") {
@@ -113,39 +169,71 @@ class LocationReceiver : BroadcastReceiver() {
                 .collection("outdoor_locations").document(location.id)
         }
 
+        // Logic cũ: lấy tầng 1 nếu là indoor (có thể cần sửa nếu logic app thay đổi)
         val postsQuery = if (location.type == "indoor") {
             docRef.collection("floor").document("1").collection("posts")
         } else {
             docRef.collection("posts")
         }
 
-        val snapshot = postsQuery.limit(1).get().await()
+        try {
+            // Sắp xếp theo thời gian giảm dần để lấy bài MỚI NHẤT
+            val snapshot = postsQuery
+                .orderBy("created_at", Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .await()
 
-        if (!snapshot.isEmpty) {
-            val storyDoc = snapshot.documents.first()
-            val storyId = storyDoc.id
-            val title = storyDoc.getString("title") ?: "New Story"
-            val user = storyDoc.getString("user_name") ?: "Unknown User"
-            var audioUrl = storyDoc.getString("audio_url") ?: ""
-            Log.d("LocationReceiver", ">>> Story ID: $storyId, Title: $title, User: $user, Audio URL: $audioUrl")
-            if (audioUrl.startsWith("gs://")) {
-                try {
-                    val storageRef = FirebaseStorage.getInstance().getReferenceFromUrl(audioUrl)
-                    audioUrl = storageRef.downloadUrl.await().toString()
-                } catch (e: Exception) {
-                    audioUrl = ""
+            if (!snapshot.isEmpty) {
+                val storyDoc = snapshot.documents.first()
+                val storyId = storyDoc.id
+                val title = storyDoc.getString("title") ?: "New Story"
+                val user = storyDoc.getString("user_name") ?: "Unknown User"
+                val rawAudioUrl = storyDoc.getString("audio_url") ?: ""
+
+                Log.d(TAG, ">>> Found Latest Firestore Story: $title")
+
+                val resolvedAudioUrl = resolveAudioUrl(rawAudioUrl)
+
+                if (resolvedAudioUrl.isNotEmpty()) {
+                    sendDiscoveryNotification(
+                        context = context,
+                        locationId = location.id,
+                        storyId = storyId,
+                        title = title,
+                        user = user,
+                        audioUrl = resolvedAudioUrl,
+                        isRecommend = false
+                    )
                 }
+            } else {
+                Log.d(TAG, ">>> No stories found in Firestore for this location.")
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching from Firestore", e)
+        }
+    }
 
-            if (audioUrl.isNotEmpty()) {
-                sendDiscoveryNotification(context, location.id, storyId, title, user, audioUrl)
+    // Hàm phụ trợ xử lý link gs://
+    private suspend fun resolveAudioUrl(originalUrl: String): String {
+        if (originalUrl.isEmpty()) return ""
+
+        return if (originalUrl.startsWith("gs://")) {
+            try {
+                val storageRef = FirebaseStorage.getInstance().getReferenceFromUrl(originalUrl)
+                storageRef.downloadUrl.await().toString()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resolving gs:// URL", e)
+                ""
             }
+        } else {
+            originalUrl
         }
     }
 
     private fun sendDiscoveryNotification(
         context: Context, locationId: String, storyId: String,
-        title: String, user: String, audioUrl: String
+        title: String, user: String, audioUrl: String, isRecommend: Boolean
     ) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -176,13 +264,16 @@ class LocationReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Thay đổi nội dung thông báo dựa trên việc đây là Gợi ý hay Mới nhất
+        val contentText = if (isRecommend) "Recommended for you by $user" else "New story from $user"
+
         val notification = NotificationCompat.Builder(context, DISCOVERY_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher_round)
-            .setContentTitle("Entered: $title") // Changed text slightly
-            .setContentText("Tap to listen to $user's story")
+            .setContentTitle(title)
+            .setContentText(contentText)
             .setContentIntent(pendingOpenApp)
             .setAutoCancel(true)
-            .addAction(android.R.drawable.ic_media_play, "Play Now", pendingPlay)
+            .addAction(android.R.drawable.ic_media_play, "Listen Now", pendingPlay)
             .build()
 
         manager.notify(locationId.hashCode(), notification)

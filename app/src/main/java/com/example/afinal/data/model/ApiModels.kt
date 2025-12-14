@@ -39,6 +39,7 @@ data class AudioItem(
         @SerializedName("final_text") val finalText: String,
         @SerializedName("audio_url") val audioUrl: String,
         @SerializedName("image_url") val imageUrl: String?,
+        @SerializedName("user_name") val userName: String? = "Anonymous",
         val score: Double,
         val tags: List<String> = emptyList(),
         @SerializedName("is_discovery") val isDiscovery: Boolean = false,

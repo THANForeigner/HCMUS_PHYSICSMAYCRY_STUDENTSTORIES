@@ -202,8 +202,31 @@ fun HomeScreen(
                             }
                             Spacer(modifier = Modifier.height(32.dp))
                         }
+                        // --- SECTION 4: TRAINING HUNTING ---
+                        SectionHeader(title = "Training-score Hunting", icon = Icons.Default.Event, gradient = trainingGradient)
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        // --- SECTION 4: HOT LOCATIONS ---
+                        if (trainingStoriesHunting.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(newsStories) { story ->
+                                    Box(modifier = Modifier.fillParentMaxWidth(0.9f)) {
+                                        StoryCard(
+                                            story = story,
+                                            onClick = { onStoryClick(story.id) }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(32.dp))
+                        }
+                        // --- SECTION 5: HOT LOCATIONS ---
                         SectionHeader(title = "Hot Locations", icon = Icons.Default.Star, gradient = locationGradient)
                         Spacer(modifier = Modifier.height(16.dp))
 
