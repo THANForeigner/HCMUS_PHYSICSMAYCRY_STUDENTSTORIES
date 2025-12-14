@@ -37,11 +37,35 @@ import com.example.afinal.data.model.toStory
 
 
 
+import com.google.firebase.auth.FirebaseAuth
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
     private val _locations = mutableStateOf<List<LocationModel>>(emptyList())
+
+
+
+
 
 
 
@@ -53,11 +77,27 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     // Helper lists to store the latest data from each collection separately
 
 
 
+
+
+
+
     private var _indoorList = listOf<LocationModel>()
+
+
+
+
 
 
 
@@ -69,11 +109,27 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     // Using Story class instead of StoryModel
 
 
 
+
+
+
+
     private val _currentStories = mutableStateOf<List<Story>>(emptyList())
+
+
+
+
 
 
 
@@ -85,11 +141,27 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     // Using Story class instead of StoryModel
 
 
 
+
+
+
+
     private val _allStories = mutableStateOf<List<Story>>(emptyList())
+
+
+
+
 
 
 
@@ -101,7 +173,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     private val _recommendedStories = mutableStateOf<List<Story>>(emptyList())
+
+
+
+
 
 
 
@@ -113,7 +197,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     val topTrendingStories = derivedStateOf {
+
+
+
+
 
 
 
@@ -121,11 +217,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
             story.reactionsCount + story.commentsCount
 
 
 
+
+
+
+
         }.take(5)
+
+
+
+
 
 
 
@@ -137,7 +245,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     val hotLocations = derivedStateOf {
+
+
+
+
 
 
 
@@ -145,7 +265,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
         val locs = _locations.value
+
+
+
+
+
+
+
+
 
 
 
@@ -161,7 +293,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
         locs.filter { locationCounts.containsKey(it.id) }
+
+
+
+
 
 
 
@@ -169,11 +313,27 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
             .take(5)
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -185,7 +345,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
     val comments: State<List<Comment>> = _comments
+
+
+
+
+
+
+
+
 
 
 
@@ -197,7 +369,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
     val reactions: State<List<Reaction>> = _reactions
+
+
+
+
+
+
+
+
 
 
 
@@ -209,7 +393,15 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
     val isIndoor: State<Boolean> = _isIndoor
+
+
+
+
 
 
 
@@ -217,7 +409,15 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
     val currentFloor: State<Int> = _currentFloor
+
+
+
+
 
 
 
@@ -225,7 +425,15 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
     val currentLocationId: State<String?> = _currentLocationId
+
+
+
+
 
 
 
@@ -233,11 +441,27 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
         _locations.value.find { it.id == _currentLocationId.value }
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -253,7 +477,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     // Track the active listener so we can remove it when switching locations
+
+
+
+
 
 
 
@@ -265,7 +501,19 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     init {
+
+
+
+
 
 
 
@@ -273,11 +521,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
         fetchAllStories()
 
 
 
-        fetchRecommendations("test_user") // TODO: Replace with actual user ID
+
+
+
+
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: "test_user"
+
+
+
+
+
+
+
+        fetchRecommendations(userId)
+
+
+
+
 
 
 
