@@ -46,6 +46,7 @@ fun HomeScreen(
     val trendingStories by storyViewModel.topTrendingStories
     val hotLocations by storyViewModel.hotLocations
     val allStories by storyViewModel.allStories
+    val recommendedStories by storyViewModel.recommendedStories
 
     // Config News
     val targetNewsTags = listOf("Important Announcement", "Facilities information", "Warning")
@@ -65,6 +66,7 @@ fun HomeScreen(
     val newsGradient = Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF0072FF)))
     val trainingGradient = Brush.linearGradient(listOf(Color(0xFF00FFC6), Color(0xFF00FF72)))
     val locationGradient = Brush.linearGradient(listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0)))
+    val recommendGradient = Brush.linearGradient(listOf(Color(0xFF43e97b), Color(0xFF38f9d7)))
 
     Box(
         modifier = Modifier
@@ -151,7 +153,32 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(32.dp))
                         }
 
-                        // --- SECTION 2: TRENDING STORIES ---
+                        // --- SECTION 2: RECOMMENDED FOR YOU ---
+                        SectionHeader(title = "Recommended For You", icon = Icons.Default.Star, gradient = recommendGradient)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (recommendedStories.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(recommendedStories) { story ->
+                                    Box(modifier = Modifier.fillParentMaxWidth(0.9f)) {
+                                        StoryCard(
+                                            story = story,
+                                            onClick = { onStoryClick(story.id) }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(32.dp))
+                        }
+
+                        // --- SECTION 3: TRENDING STORIES ---
                         SectionHeader(title = "Trending Stories", icon = Icons.Default.LocalFireDepartment, gradient = fireGradient)
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -165,31 +192,6 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(trendingStories) { story ->
-                                    Box(modifier = Modifier.fillParentMaxWidth(0.9f)) {
-                                        StoryCard(
-                                            story = story,
-                                            onClick = { onStoryClick(story.id) }
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(32.dp))
-                        }
-
-                        // --- SECTION 3: TRAINING HUNTING ---
-                        SectionHeader(title = "Training-score Hunting", icon = Icons.Default.Event, gradient = trainingGradient)
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        if (trainingStoriesHunting.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 24.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(newsStories) { story ->
                                     Box(modifier = Modifier.fillParentMaxWidth(0.9f)) {
                                         StoryCard(
                                             story = story,

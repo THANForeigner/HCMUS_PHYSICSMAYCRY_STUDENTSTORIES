@@ -1,6 +1,7 @@
 package com.example.afinal.models
 
 import com.example.afinal.data.model.Position
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.PropertyName
 
@@ -18,5 +19,6 @@ data class StoryModel(
     var locationName: String = "",
     val position: Position? = null,
     val pictures: List<String> = emptyList(),
-    val floor: Int? = null
+    val floor: Int? = null,
+    val createdAt: Timestamp? = null
 )
