@@ -415,7 +415,7 @@ fun CommentsSectionStyle(storyViewModel: StoryViewModel, authViewModel: AuthView
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 300.dp)
+                        .heightIn(max = 150.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
                     comments.forEach { comment ->
