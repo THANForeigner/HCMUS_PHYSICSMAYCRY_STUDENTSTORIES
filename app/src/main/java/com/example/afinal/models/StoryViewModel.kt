@@ -53,6 +53,54 @@ import com.google.firebase.auth.FirebaseAuth
 
 
 
+import androidx.compose.runtime.snapshotFlow
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import kotlinx.coroutines.flow.collectLatest
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class StoryViewModel : ViewModel() {
 
 
@@ -61,7 +109,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     private val _locations = mutableStateOf<List<LocationModel>>(emptyList())
+
+
+
+
+
+
+
+
 
 
 
@@ -85,6 +149,22 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Helper lists to store the latest data from each collection separately
 
 
@@ -93,7 +173,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     private var _indoorList = listOf<LocationModel>()
+
+
+
+
+
+
+
+
 
 
 
@@ -117,6 +213,22 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Using Story class instead of StoryModel
 
 
@@ -125,7 +237,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     private val _currentStories = mutableStateOf<List<Story>>(emptyList())
+
+
+
+
+
+
+
+
 
 
 
@@ -149,6 +277,22 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Using Story class instead of StoryModel
 
 
@@ -157,7 +301,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     private val _allStories = mutableStateOf<List<Story>>(emptyList())
+
+
+
+
+
+
+
+
 
 
 
@@ -181,7 +341,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     private val _recommendedStories = mutableStateOf<List<Story>>(emptyList())
+
+
+
+
+
+
+
+
 
 
 
@@ -205,7 +389,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     val topTrendingStories = derivedStateOf {
+
+
+
+
+
+
+
+
 
 
 
@@ -221,6 +429,14 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
             story.reactionsCount + story.commentsCount
 
 
@@ -229,7 +445,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
         }.take(5)
+
+
+
+
+
+
+
+
 
 
 
@@ -253,7 +485,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     val hotLocations = derivedStateOf {
+
+
+
+
+
+
+
+
 
 
 
@@ -269,7 +525,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
         val locs = _locations.value
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -301,7 +581,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         locs.filter { locationCounts.containsKey(it.id) }
+
+
+
+
+
+
+
+
 
 
 
@@ -317,6 +621,14 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
             .take(5)
 
 
@@ -325,7 +637,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -349,7 +685,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     val comments: State<List<Comment>> = _comments
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -373,7 +733,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     val reactions: State<List<Reaction>> = _reactions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -397,7 +781,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     val isIndoor: State<Boolean> = _isIndoor
+
+
+
+
+
+
+
+
 
 
 
@@ -413,7 +813,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     val currentFloor: State<Int> = _currentFloor
+
+
+
+
+
+
+
+
 
 
 
@@ -429,7 +845,23 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     val currentLocationId: State<String?> = _currentLocationId
+
+
+
+
+
+
+
+
 
 
 
@@ -445,6 +877,14 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
         _locations.value.find { it.id == _currentLocationId.value }
 
 
@@ -453,7 +893,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -485,7 +949,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Track the active listener so we can remove it when switching locations
+
+
+
+
+
+
+
+
 
 
 
@@ -509,7 +997,31 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     init {
+
+
+
+
+
+
+
+
 
 
 
@@ -525,6 +1037,14 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
         fetchAllStories()
 
 
@@ -533,7 +1053,6 @@ class StoryViewModel : ViewModel() {
 
 
 
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: "test_user"
 
 
 
@@ -541,7 +1060,6 @@ class StoryViewModel : ViewModel() {
 
 
 
-        fetchRecommendations(userId)
 
 
 
@@ -549,7 +1067,6 @@ class StoryViewModel : ViewModel() {
 
 
 
-    }
 
 
 
@@ -557,7 +1074,6 @@ class StoryViewModel : ViewModel() {
 
 
 
-    fun fetchRecommendations(userId: String) {
 
 
 
@@ -565,35 +1081,79 @@ class StoryViewModel : ViewModel() {
 
 
 
-            try {
 
 
 
-                val request = RecommendRequest(userId = userId)
 
 
 
-                val response = RetrofitClient.api.getRecommendations(request)
 
 
 
-                if (response.isSuccessful) {
 
 
 
-                    val audioItems = response.body()?.results ?: emptyList()
+            snapshotFlow { currentLocation.value }
 
 
 
-                    _recommendedStories.value = audioItems.map { it.toStory() }
 
 
 
-                } else {
 
 
 
-                    Log.e("StoryViewModel", "Failed to fetch recommendations: ${response.errorBody()?.string()}")
+
+
+
+
+
+
+                .collectLatest {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: "test_user"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    fetchRecommendations(userId)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -601,15 +1161,15 @@ class StoryViewModel : ViewModel() {
 
 
 
-            } catch (e: Exception) {
 
 
 
-                Log.e("StoryViewModel", "Error fetching recommendations", e)
 
 
 
-            }
+
+
+
 
 
 
@@ -617,7 +1177,155 @@ class StoryViewModel : ViewModel() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+            fun fetchRecommendations(userId: String) {
+
+
+
+
+
+
+
+                viewModelScope.launch {
+
+
+
+
+
+
+
+                    try {
+
+
+
+
+
+
+
+                        val nameBuilding = currentLocation.value?.locationName ?: ""
+
+
+
+
+
+
+
+                        val request = RecommendRequest(userId = userId, nameBuilding = nameBuilding)
+
+
+
+
+
+
+
+                        val response = RetrofitClient.api.getRecommendations(request)
+
+
+
+
+
+
+
+                        if (response.isSuccessful) {
+
+
+
+
+
+
+
+                            val audioItems = response.body()?.results ?: emptyList()
+
+
+
+
+
+
+
+                            _recommendedStories.value = audioItems.map { it.toStory() }
+
+
+
+
+
+
+
+                        } else {
+
+
+
+
+
+
+
+                            Log.e("StoryViewModel", "Failed to fetch recommendations: ${response.errorBody()?.string()}")
+
+
+
+
+
+
+
+                        }
+
+
+
+
+
+
+
+                    } catch (e: Exception) {
+
+
+
+
+
+
+
+                        Log.e("StoryViewModel", "Error fetching recommendations", e)
+
+
+
+
+
+
+
+                    }
+
+
+
+
+
+
+
+                }
+
+
+
+
+
+
+
+            }
 
 
 
