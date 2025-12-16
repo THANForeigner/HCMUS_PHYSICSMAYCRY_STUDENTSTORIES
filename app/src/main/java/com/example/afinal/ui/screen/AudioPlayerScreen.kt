@@ -2,7 +2,6 @@ package com.example.afinal.ui.screen
 
 import android.content.Intent
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,13 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -98,18 +95,24 @@ fun AudioPlayerScreen(
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 40.dp, bottom = 10.dp, start = 16.dp, end = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(top = 40.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)
                 ) {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Down", tint = Color.White)
+                    // 1. Back Button (Left)
+                    IconButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Back", tint = Color.White)
                     }
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // 2. Title (Center)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
                         Text(
                             text = "PLAYING FROM",
                             style = MaterialTheme.typography.labelSmall,
@@ -117,16 +120,13 @@ fun AudioPlayerScreen(
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = "Main Library", // Hoặc tên playlist
+                            text = story?.locationName ?: "Loading Location...",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                     }
 
-                    IconButton(onClick = { /* Menu Action */ }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Menu", tint = Color.White)
-                    }
                 }
             }
         ) { innerPadding ->
@@ -294,17 +294,12 @@ fun PlayerControlsSection(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Buttons: Shuffle, Prev, Play, Next, Repeat
+        // Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Shuffle, "Shuffle", tint = Color.White, modifier = Modifier.size(24.dp))
-
-            Icon(Icons.Default.SkipPrevious, "Previous", tint = Color.White, modifier = Modifier.size(36.dp))
-
-            // Nút Play Trắng Lớn
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -320,10 +315,6 @@ fun PlayerControlsSection(
                     modifier = Modifier.size(36.dp)
                 )
             }
-
-            Icon(Icons.Default.SkipNext, "Next", tint = Color.White, modifier = Modifier.size(36.dp))
-
-            Icon(Icons.Default.Repeat, "Repeat", tint = Color.White, modifier = Modifier.size(24.dp))
         }
     }
 }

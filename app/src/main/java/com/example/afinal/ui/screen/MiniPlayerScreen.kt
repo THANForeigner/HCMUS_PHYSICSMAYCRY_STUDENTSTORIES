@@ -102,6 +102,7 @@ fun MiniPlayer(
             // 3. Controls (Play, Next, Close)
             Row(verticalAlignment = Alignment.CenterVertically) {
 
+                // Play/Pause Button
                 IconButton(
                     onClick = onPlayPause,
                     modifier = Modifier
@@ -116,22 +117,18 @@ fun MiniPlayer(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-                IconButton(onClick = onSkipNext) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        tint = Color.White
-                    )
-                }
-
-                // Nút Close
-                IconButton(onClick = onClose) {
+                // Close Button
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(32.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Color.White.copy(alpha = 0.7f)
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

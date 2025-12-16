@@ -17,12 +17,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,13 +38,11 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ui.theme.AppGradients
 import com.example.afinal.models.StoryViewModel
-import com.example.afinal.navigation.AppNavigation
 import com.example.afinal.ui.component.StoryCard
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 
-// Giữ nguyên Data Class
 data class UserProfile(
     val id: String? = null,
     val name: String? = null,
@@ -146,32 +142,18 @@ fun UserScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // Header: Title "Profile" và Icon Settings
-            Row(
+            // Header: Title "Profile"
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 40.dp, bottom = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color.Transparent
-                )
-
                 Text(
                     text = "Profile",
                     style = MaterialTheme.typography.headlineMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
-                )
-
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = Color.White,
-                    modifier = Modifier.clickable { /* Handle Settings click */ }
                 )
             }
 

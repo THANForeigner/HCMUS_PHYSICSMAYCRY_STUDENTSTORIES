@@ -196,7 +196,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
                     Marker(
                         state = MarkerState(position = LatLng(loc.latitude, loc.longitude)),
                         title = loc.locationName,
-                        snippet = if (isActive) "You are here!" else "Tap to view stories",
+                        snippet = if (isActive) "You are here!" else "Go to this play to view stories",
                         icon = if (isActive) {
                             com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
                                 com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED
@@ -208,12 +208,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
                             )
                         },
                         onClick = {
-                            storyViewModel.fetchStoriesForLocation(loc.id)
-                            navController.navigate(Routes.AUDIOS) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+
                             false
                         }
                     )
