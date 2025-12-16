@@ -86,28 +86,41 @@ fun AudiosScreen(
     val userLocation by locationViewModel.location
     val allLocations by storyViewModel.locations
 
+    // UI-only Indoor Detector for display purposes
     val indoorDetector = remember { IndoorDetector(context) }
     val isUserIndoor by indoorDetector.observeIndoorStatus()
         .collectAsState(initial = storyViewModel.isIndoor.value)
 
+    // --- LOGIC GPS & PDR INTEGRATION ---
     val scope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        val locationGPS = LocationGPS(context)
-        locationGPS.startTracking(locationViewModel, scope)
+    // Initialize the LocationGPS system
+    val locationGPS = remember { LocationGPS(context) }
 
+    // Start Tracking Lifecycle
+    DisposableEffect(Unit) {
+        locationGPS.startTracking(locationViewModel, scope)
         onDispose {
             locationGPS.stopTracking()
         }
     }
 
-    LaunchedEffect(userLocation, allLocations, isUserIndoor) {
-        if (!isUserIndoor && userLocation != null && allLocations.isNotEmpty()) {
+    // Zone Detection & Mode Switching Logic
+    LaunchedEffect(userLocation, allLocations) {
+        // [FIX] Removed check for !isUserIndoor. We check zone regardless of indoor status.
+        if (userLocation != null && allLocations.isNotEmpty()) {
             val currentLoc = DistanceCalculator.findNearestLocation(
                 userLat = userLocation!!.latitude,
                 userLng = userLocation!!.longitude,
                 candidates = allLocations
             )
+
+            // [FIX] Update LocationGPS with zone status.
+            // If in a zone -> true, else -> false.
+            // This enables the "Indoor + In Zone" condition for PDR.
+            locationGPS.setZoneStatus(currentLoc != null)
+
             if (currentLoc != null) {
+                // [FIX] Show audio and location (Original Logic)
                 if (currentLocationId != currentLoc.id) {
                     selectedTag = null
                     storyViewModel.fetchStoriesForLocation(currentLoc.id)
@@ -115,9 +128,13 @@ fun AudiosScreen(
             } else {
                 storyViewModel.clearLocation()
             }
+        } else {
+            // No location or no data
+            locationGPS.setZoneStatus(false)
         }
     }
 
+    // Update ViewModel indoor status from UI detector
     LaunchedEffect(isUserIndoor) {
         if (isUserIndoor != isIndoor) {
             storyViewModel.setIndoorStatus(isUserIndoor)
@@ -156,7 +173,6 @@ fun AudiosScreen(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // Text: Title & Subtitle
                     Column {
                         Text(
                             text = "School Map",
@@ -232,6 +248,7 @@ fun AudiosScreen(
     }
 }
 
+// ... (Rest of components: TagFilterBar, EmptyLocationView, etc. remain unchanged) ...
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TagFilterBar(

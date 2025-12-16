@@ -41,7 +41,6 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
     val locations by storyViewModel.locations
     val myLocation by locationViewModel.location // Live User Location
 
-    val myLocationUtils = remember { LocationGPS(context) }
     val indoorDetector = remember { IndoorDetector(context) }
 
     // --- COLOR DEFINITIONS ---
@@ -57,10 +56,11 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
         context, Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
 
-    // 1. Start GPS
+    // --- LOGIC GPS & PDR INTEGRATION ---
     val scope = rememberCoroutineScope()
+    val locationGPS = remember { LocationGPS(context) }
+
     DisposableEffect(hasForegroundPermission) {
-        val locationGPS = LocationGPS(context)
         if (hasForegroundPermission) {
             locationGPS.startTracking(locationViewModel, scope)
         }
@@ -69,7 +69,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
         }
     }
 
-    // 2. Indoor Detection Flow
+    // 2. Indoor Detection Flow (UI)
     LaunchedEffect(Unit) {
         if (hasForegroundPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             indoorDetector.observeIndoorStatus().collect { isIndoor ->
@@ -78,7 +78,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
         }
     }
 
-    // 3. Determine Current "Active" Location
+    // 3. Determine Current "Active" Location & Zone PDR Logic
     var activeLocationId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(myLocation, locations) {
@@ -89,6 +89,9 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
                 candidates = locations
             )
 
+            // [FIX] Enable PDR only if In Zone (and Indoor logic handled by LocationGPS)
+            locationGPS.setZoneStatus(targetLocation != null)
+
             activeLocationId = targetLocation?.id
 
             if (targetLocation != null) {
@@ -96,6 +99,8 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
             } else {
                 storyViewModel.clearLocation()
             }
+        } else {
+            locationGPS.setZoneStatus(false)
         }
     }
 
