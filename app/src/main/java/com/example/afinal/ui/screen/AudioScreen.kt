@@ -175,13 +175,13 @@ fun AudiosScreen(
 
                     Column {
                         Text(
-                            text = "School Map",
+                            text = "Audio List",
                             style = MaterialTheme.typography.headlineMedium,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Explore story locations",
+                            text = "Listen to interesting stories",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.9f)
                         )
