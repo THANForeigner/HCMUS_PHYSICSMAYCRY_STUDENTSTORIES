@@ -15,6 +15,7 @@ import com.google.android.gms.location.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -29,17 +30,21 @@ class LocationGPS(private val context: Context) {
     private var locationCallback: LocationCallback? = null
     private var locationJob: Job? = null
 
+    // Scope for running the 1-minute timer
+    private var trackingScope: CoroutineScope? = null
+
     // State Variables
     private var lastKnownLocation: LocationData? = null
     private var isTracking = false
     private var isIndoor = false
-    private var isInZone = false // New flag: User must be in a zone to use PDR
+    private var isInZone = false
 
-    // Mode tracking to prevent redundant switching
     private var isPdrActive = false
 
+    // New Flag: Are we currently waiting for the initial GPS fix?
+    private var isAcquiringInitialLocation = false
+
     init {
-        // Initialize PDR System with a callback to update ViewModel
         pdrSystem = PDRSystem(context) { newLocation ->
             lastKnownLocation = newLocation
             updateListener?.invoke(newLocation)
@@ -52,12 +57,12 @@ class LocationGPS(private val context: Context) {
     fun startTracking(viewModel: LocationViewModel, scope: CoroutineScope) {
         if (isTracking) return
         isTracking = true
+        trackingScope = scope // Store the scope to use for the timer
 
         updateListener = { loc ->
             viewModel.updateLocation(loc)
         }
 
-        // 1. Start monitoring Indoor status
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             locationJob = scope.launch(Dispatchers.Main) {
                 indoorDetector.observeIndoorStatus().collectLatest { indoorStatus ->
@@ -68,7 +73,7 @@ class LocationGPS(private val context: Context) {
             }
         }
 
-        // 2. Initial Start (Default to GPS)
+        // Always start with GPS initially
         startGpsUpdates()
     }
 
@@ -79,12 +84,9 @@ class LocationGPS(private val context: Context) {
         pdrSystem.stop()
         updateListener = null
         isPdrActive = false
+        isAcquiringInitialLocation = false
     }
 
-    /**
-     * Called by UI (AudioScreen/MapScreen) when DistanceCalculator determines
-     * if the user is inside a valid zone.
-     */
     fun setZoneStatus(inZone: Boolean) {
         if (isInZone != inZone) {
             isInZone = inZone
@@ -94,27 +96,61 @@ class LocationGPS(private val context: Context) {
     }
 
     private fun checkAndSwitchMode() {
-        // CONDITION: Turn on indoor tracking ONLY if (Indoor + In Zone)
         if (isIndoor && isInZone) {
-            switchToPDR()
+            // Case 1: We already have a location -> Switch to PDR immediately
+            if (lastKnownLocation != null) {
+                switchToPDR()
+            } else {
+                // Case 2: No location yet -> Start 1-minute GPS acquisition if not already running
+                if (!isAcquiringInitialLocation) {
+                    startInitialLocationAcquisition()
+                }
+            }
         } else {
+            // Outdoor or Not in Zone -> Use GPS
+            // If we were acquiring, stop the acquisition flag (timer will finish harmlessly)
+            isAcquiringInitialLocation = false
             switchToGPS()
         }
     }
 
-    private fun switchToPDR() {
-        if (isPdrActive) return // Already in PDR
-        Log.d("LocationGPS", ">>> Switching to PDR Mode (Indoor + In Zone)")
+    private fun startInitialLocationAcquisition() {
+        Log.d("LocationGPS", "Indoor detected but no location. Running GPS for 1 minute...")
+        isAcquiringInitialLocation = true
 
+        // Ensure GPS updates are running
+        if (locationCallback == null) {
+            startGpsUpdates()
+        }
+
+        // Launch 1-minute timer
+        trackingScope?.launch {
+            delay(60_000) // Wait 1 minute
+
+            // After 1 minute, if we are still in the acquiring state
+            if (isAcquiringInitialLocation) {
+                Log.d("LocationGPS", "1-minute acquisition finished. Switching to PDR.")
+                isAcquiringInitialLocation = false
+
+                // If we found a location during the wait, this will switch.
+                // If still null, checkAndSwitchMode will trigger acquisition again (retry).
+                checkAndSwitchMode()
+            }
+        }
+    }
+
+    private fun switchToPDR() {
+        if (isPdrActive) return
+
+        if (lastKnownLocation == null) {
+            Log.e("LocationGPS", "Cannot switch to PDR: Last location is null.")
+            return
+        }
+
+        Log.d("LocationGPS", ">>> Switching to PDR Mode (Indoor + In Zone)")
         stopGpsUpdates()
         isPdrActive = true
-
-        if (lastKnownLocation != null) {
-            pdrSystem.start(lastKnownLocation!!)
-        } else {
-            Log.w("LocationGPS", "Cannot start PDR: No start location. Attempting single GPS fix.")
-            startGpsUpdates(singleUpdate = true)
-        }
+        pdrSystem.start(lastKnownLocation!!)
     }
 
     private fun switchToGPS() {
@@ -127,11 +163,9 @@ class LocationGPS(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    private fun startGpsUpdates(singleUpdate: Boolean = false) {
+    private fun startGpsUpdates() {
         if (!hasLocationPermission(context)) return
-
-        // If we already have a callback and not asking for single update, skip
-        if (locationCallback != null && !singleUpdate) return
+        if (locationCallback != null) return
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -139,12 +173,8 @@ class LocationGPS(private val context: Context) {
                     val locData = LocationData(it.latitude, it.longitude)
                     lastKnownLocation = locData
                     updateListener?.invoke(locData)
-
-                    if (singleUpdate) {
-                        // Needed a fix to start PDR, now switch back
-                        stopGpsUpdates()
-                        if (isIndoor && isInZone) pdrSystem.start(locData)
-                    }
+                    // Note: We don't auto-switch here anymore. We wait for the timer
+                    // or checkAndSwitchMode logic.
                 }
             }
         }
