@@ -36,6 +36,9 @@ import com.example.afinal.ultis.DistanceCalculator
 import com.example.afinal.ultis.IndoorDetector
 import com.example.afinal.ui.component.StoryCard
 import com.example.afinal.ui.theme.AppGradients
+import android.widget.Toast
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.HorizontalDivider
 
 val STORY_TAGS = listOf(
     "Romance", "Pet", "Mysteries", "Facilities information",
@@ -213,7 +216,14 @@ fun AudiosScreen(
 
                     StoryList(
                         stories = filteredStories,
-                        onAddStoryClick = { navController.navigate(Routes.ADD_POST) },
+                        currentFloor = currentFloor,
+                        onAddStoryClick = {
+                            if (currentFloor == 0) {
+                                Toast.makeText(context, "Please select a specific floor to post!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                navController.navigate(Routes.ADD_POST)
+                            }
+                        },
                         onStoryClick = { story -> navController.navigate("${Routes.AUDIO_PLAYER}/${story.id}") }
                     )
                 }
@@ -430,16 +440,32 @@ fun LocationHeader(locationId: String, isIndoor: Boolean, floor: Int) {
 @Composable
 fun FloorSelector(currentFloor: Int, onFloorSelected: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    FloatingActionButton(onClick = { expanded = true }, containerColor = MaterialTheme.colorScheme.primary) {
+    val labelText = if (currentFloor == 0) "All Floors" else "Floor $currentFloor"
+
+    FloatingActionButton(
+        onClick = { expanded = true },
+        containerColor = MaterialTheme.colorScheme.primary
+    ) {
         Row(modifier = Modifier.padding(horizontal = 16.dp)) {
             Icon(Icons.Default.Layers, null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Floor $currentFloor")
+            Text(labelText)
         }
     }
+
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(
+            text = { Text("All Floors") },
+            onClick = { onFloorSelected(0); expanded = false }
+        )
+
+        HorizontalDivider()
+
         (1..11).forEach { floor ->
-            DropdownMenuItem(text = { Text("Floor $floor") }, onClick = { onFloorSelected(floor); expanded = false })
+            DropdownMenuItem(
+                text = { Text("Floor $floor") },
+                onClick = { onFloorSelected(floor); expanded = false }
+            )
         }
     }
 }
@@ -457,7 +483,12 @@ fun AddLocationDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
 }
 
 @Composable
-fun StoryList(stories: List<Story>, onAddStoryClick: () -> Unit, onStoryClick: (Story) -> Unit) {
+fun StoryList(
+    stories: List<Story>,
+    currentFloor: Int,
+    onAddStoryClick: () -> Unit,
+    onStoryClick: (Story) -> Unit
+) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -466,12 +497,18 @@ fun StoryList(stories: List<Story>, onAddStoryClick: () -> Unit, onStoryClick: (
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
+            val isAllFloors = currentFloor == 0
+            val cardColor = if (isAllFloors) Color.Gray.copy(alpha = 0.1f) else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+            val iconColor = if (isAllFloors) Color.Gray else MaterialTheme.colorScheme.primary
+            val textColor = if (isAllFloors) Color.Gray else Color.Unspecified
+            val textContent = if (isAllFloors) "Select a specific floor to post" else "Share your story here"
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                 onClick = onAddStoryClick,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)),
+                colors = CardDefaults.cardColors(containerColor = cardColor),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
@@ -481,9 +518,17 @@ fun StoryList(stories: List<Story>, onAddStoryClick: () -> Unit, onStoryClick: (
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Add, "Add Story", tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        imageVector = if (isAllFloors) Icons.Default.Info else Icons.Default.Add,
+                        contentDescription = "Add Story",
+                        tint = iconColor
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Share your story here", fontWeight = FontWeight.Medium)
+                    Text(
+                        text = textContent,
+                        fontWeight = FontWeight.Medium,
+                        color = textColor
+                    )
                 }
             }
         }

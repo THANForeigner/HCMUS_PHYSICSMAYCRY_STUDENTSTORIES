@@ -329,6 +329,18 @@ class StoryViewModel : ViewModel() {
 
         _currentLocationId.value = locationId
         _currentFloor.value = floor
+
+        if (floor == 0) {
+            val storiesInLocation = _allStories.value.filter { it.locationName == locationId }
+            _currentStories.value = storiesInLocation
+            _loadedFloor = floor
+            val locationType = _locations.value.find { it.id == locationId }?.type ?: "outdoor"
+            setIndoorStatus(locationType == "indoor")
+
+            Log.d("StoryViewModel", "Loaded ${storiesInLocation.size} stories for All Floors in $locationId")
+            return
+        }
+
         val db = FirebaseFirestore.getInstance()
         val locationType = _locations.value.find { it.id == locationId }?.type ?: "outdoor"
 

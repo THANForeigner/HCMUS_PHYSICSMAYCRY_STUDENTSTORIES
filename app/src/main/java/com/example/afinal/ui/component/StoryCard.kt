@@ -136,6 +136,7 @@ private fun CompletedStateView(story: Story) {
         style = MaterialTheme.typography.bodyMedium,
         color = Color(0xFF757575), // Gray 600
         maxLines = 2,
+        minLines = 2,
         overflow = TextOverflow.Ellipsis,
         lineHeight = 20.sp
     )

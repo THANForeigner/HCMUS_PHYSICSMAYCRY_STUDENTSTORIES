@@ -31,6 +31,12 @@ import com.example.afinal.ui.theme.AppGradients
 import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.OpenInFull
+import com.example.afinal.ui.theme.BlueDark
+import com.example.afinal.ui.theme.BlueLight
+import com.example.afinal.ui.theme.BluePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +56,7 @@ fun AudioPlayerScreen(
     var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var totalDuration by remember { mutableLongStateOf(0L) }
+    var showDescriptionDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(audioService, story) {
         if (audioService != null && story != null) {
@@ -174,7 +181,7 @@ fun AudioPlayerScreen(
 
                     Spacer(modifier = Modifier.height(40.dp))
 
-                    // --- 2. TITLE & AUTHOR & HEART ICON ---
+                    // --- 2. TITLE & AUTHOR ---
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -202,7 +209,10 @@ fun AudioPlayerScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 100.dp)
-                                .verticalScroll(rememberScrollState())
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.05f))
+                                .clickable { showDescriptionDialog = true }
+                                .padding(12.dp)
                         ) {
                             Text(
                                 text = story.description,
@@ -210,9 +220,17 @@ fun AudioPlayerScreen(
                                 color = Color.White.copy(alpha = 0.8f),
                                 textAlign = TextAlign.Center,
                                 lineHeight = 20.sp,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
+
+                    if (showDescriptionDialog) {
+                        DescriptionDialog(
+                            description = story.description,
+                            onDismiss = { showDescriptionDialog = false }
+                        )
                     }
 
                     // --- 3. SLIDER & CONTROLS ---
@@ -311,9 +329,66 @@ fun PlayerControlsSection(
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = "Play/Pause",
-                    tint = Color(0xFF8E24AA),
+                    tint = BlueDark,
                     modifier = Modifier.size(36.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun DescriptionDialog(
+    description: String,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 500.dp)
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = BlueLight.copy(alpha = 0.95f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Story Description",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.9f),
+                        textAlign = TextAlign.Justify,
+                        lineHeight = 24.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                    shape = CircleShape
+                ) {
+                    Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
