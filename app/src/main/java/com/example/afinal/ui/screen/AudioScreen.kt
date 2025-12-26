@@ -41,14 +41,38 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.HorizontalDivider
 
 val STORY_TAGS = listOf(
-    "Romance", "Pet", "Mysteries", "Facilities information",
-    "Health", "Food and drink", "Social and communities",
-    "Personal experience", "Warning", "Study Hacks",
-    "Library Vibes", "Confessions", "Motivation",
-    "Gaming", "Burnout", "Emotional support", "Important Announcement", "Academic Contest",
-    "Academic Collaboration", "Clubs", "Sport", "Achievement", "Amazing Individuals", "Cyber problems warning",
-    "Social Activities", "Seminar", "After-class Activities", "Volunteer Campaigns", "Online Activities", "Club Recruitment", "Questions & Answers",
-    "Scholarship"
+    "Academic Collaboration",
+    "Academic Contest",
+    "Achievement",
+    "After-class Activities",
+    "Amazing Individuals",
+    "Burnout",
+    "Club Recruitment",
+    "Clubs",
+    "Confessions",
+    "Cyber problems warning",
+    "Emotional support",
+    "Facilities information",
+    "Food and drink",
+    "Gaming",
+    "Health",
+    "Important Announcement",
+    "Library Vibes",
+    "Motivation",
+    "Mysteries",
+    "Online Activities",
+    "Personal experience",
+    "Pet",
+    "Questions & Answers",
+    "Romance",
+    "Scholarship",
+    "Seminar",
+    "Social Activities",
+    "Social and communities",
+    "Sport",
+    "Study Hacks",
+    "Volunteer Campaigns",
+    "Warning"
 )
 
 @Composable
