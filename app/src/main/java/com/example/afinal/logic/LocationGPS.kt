@@ -4,20 +4,19 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Build
 import android.os.Looper
 import android.util.Log
-import androidx.core.content.ContextCompat
+import androidx.core.app.ActivityCompat
 import com.example.afinal.data.LocationData
 import com.example.afinal.models.LocationViewModel
 import com.example.afinal.ultis.IndoorDetector
 import com.google.android.gms.location.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import com.google.android.gms.tasks.CancellationTokenSource
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class LocationGPS(private val context: Context) {
 
@@ -27,171 +26,200 @@ class LocationGPS(private val context: Context) {
     private val pdrSystem: PDRSystem
     private val indoorDetector = IndoorDetector(context)
 
-    private var locationCallback: LocationCallback? = null
-    private var locationJob: Job? = null
-
-    // Scope for running the 1-minute timer
+    // Job management
+    private var trackingJob: Job? = null
+    private var indoorJob: Job? = null
     private var trackingScope: CoroutineScope? = null
 
-    // State Variables
-    private var lastKnownLocation: LocationData? = null
+    // State Tracking
     private var isTracking = false
+    private var currentMode = "None"
+
+    // StudentStories specific flags
     private var isIndoor = false
     private var isInZone = false
 
-    private var isPdrActive = false
+    // Location Listeners
+    private var activeLocationCallback: LocationCallback? = null
+    private var updateListener: ((LocationData) -> Unit)? = null
 
-    // New Flag: Are we currently waiting for the initial GPS fix?
-    private var isAcquiringInitialLocation = false
+    // Callback to update UI or Logs (Optional)
+    var onStatusChanged: ((mode: String) -> Unit)? = null
 
     init {
+        // Initialize PDR
         pdrSystem = PDRSystem(context) { newLocation ->
-            lastKnownLocation = newLocation
+            // PDR updates come here
             updateListener?.invoke(newLocation)
         }
     }
-
-    private var updateListener: ((LocationData) -> Unit)? = null
 
     @SuppressLint("MissingPermission")
     fun startTracking(viewModel: LocationViewModel, scope: CoroutineScope) {
         if (isTracking) return
         isTracking = true
-        trackingScope = scope // Store the scope to use for the timer
+        trackingScope = scope
+        updateListener = { loc -> viewModel.updateLocation(loc) }
 
-        updateListener = { loc ->
-            viewModel.updateLocation(loc)
-        }
-
+        // 1. Observe Indoor Detector (StudentStories Logic)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            locationJob = scope.launch(Dispatchers.Main) {
+            indoorJob = scope.launch(Dispatchers.Main) {
                 indoorDetector.observeIndoorStatus().collectLatest { indoorStatus ->
                     isIndoor = indoorStatus
                     Log.d("LocationGPS", "Indoor Status: $isIndoor")
-                    checkAndSwitchMode()
+                    checkAndChooseBestMode() // Re-evaluate mode when sensor changes
                 }
             }
         }
 
-        // Always start with GPS initially
-        startGpsUpdates()
+        // 2. Start the Periodic Check Loop (TestLocation Logic)
+        trackingJob = scope.launch(Dispatchers.Main) {
+            while (isActive) {
+                checkAndChooseBestMode()
+                delay(500) // Re-check every 1 minute
+            }
+        }
     }
 
     fun stopTracking() {
         isTracking = false
-        locationJob?.cancel()
-        stopGpsUpdates()
+        trackingJob?.cancel()
+        indoorJob?.cancel()
+        stopActiveUpdates()
         pdrSystem.stop()
         updateListener = null
-        isPdrActive = false
-        isAcquiringInitialLocation = false
+        currentMode = "Stopped"
+        onStatusChanged?.invoke(currentMode)
     }
 
     fun setZoneStatus(inZone: Boolean) {
         if (isInZone != inZone) {
             isInZone = inZone
             Log.d("LocationGPS", "Zone Status Changed: $isInZone")
-            checkAndSwitchMode()
+            // Trigger a mode check immediately
+            trackingScope?.launch(Dispatchers.Main) {
+                checkAndChooseBestMode()
+            }
         }
     }
 
-    private fun checkAndSwitchMode() {
+    /**
+     * Core logic merging TestLocation's accuracy checks with StudentStories' Zone logic.
+     */
+    @SuppressLint("MissingPermission")
+    private suspend fun checkAndChooseBestMode() {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+
+        Log.d("LocationGPS", "Checking for best provider...")
+
+        // PRIORITY 1: StudentStories Logic
+        // If we are strictly Indoor AND In the Zone, force PDR (or Network+PDR)
         if (isIndoor && isInZone) {
-            // Case 1: We already have a location -> Switch to PDR immediately
-            if (lastKnownLocation != null) {
-                switchToPDR()
+            // Use last known location or try to fetch one quickly to start PDR
+            val lastLocation = fusedLocationClient.lastLocation.await()
+            val startLoc = if (lastLocation != null) {
+                LocationData(lastLocation.latitude, lastLocation.longitude)
             } else {
-                // Case 2: No location yet -> Start 1-minute GPS acquisition if not already running
-                if (!isAcquiringInitialLocation) {
-                    startInitialLocationAcquisition()
-                }
+                null // PDR will warn if no start location
             }
-        } else {
-            // Outdoor or Not in Zone -> Use GPS
-            // If we were acquiring, stop the acquisition flag (timer will finish harmlessly)
-            isAcquiringInitialLocation = false
-            switchToGPS()
-        }
-    }
-
-    private fun startInitialLocationAcquisition() {
-        Log.d("LocationGPS", "Indoor detected but no location. Running GPS for 1 minute...")
-        isAcquiringInitialLocation = true
-
-        // Ensure GPS updates are running
-        if (locationCallback == null) {
-            startGpsUpdates()
-        }
-
-        // Launch 1-minute timer
-        trackingScope?.launch {
-            delay(60_000) // Wait 1 minute
-
-            // After 1 minute, if we are still in the acquiring state
-            if (isAcquiringInitialLocation) {
-                Log.d("LocationGPS", "1-minute acquisition finished. Switching to PDR.")
-                isAcquiringInitialLocation = false
-
-                // If we found a location during the wait, this will switch.
-                // If still null, checkAndSwitchMode will trigger acquisition again (retry).
-                checkAndSwitchMode()
-            }
-        }
-    }
-
-    private fun switchToPDR() {
-        if (isPdrActive) return
-
-        if (lastKnownLocation == null) {
-            Log.e("LocationGPS", "Cannot switch to PDR: Last location is null.")
+            switchToNetworkPdrMode(startLoc)
             return
         }
 
-        Log.d("LocationGPS", ">>> Switching to PDR Mode (Indoor + In Zone)")
-        stopGpsUpdates()
-        isPdrActive = true
-        pdrSystem.start(lastKnownLocation!!)
+        // PRIORITY 2: TestLocation Logic (Auto-detection)
+        // If not forced by Zone, check GPS quality.
+        val tokenSource = CancellationTokenSource()
+        val locationTask = fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            tokenSource.token
+        )
+
+        try {
+            val location = locationTask.await()
+
+            // If we have a location AND it's accurate (< 10m), use GPS.
+            if (location != null && location.accuracy < 5.0f) {
+                switchToGpsMode()
+            } else {
+                // GPS is weak or null -> Fallback to Network + PDR
+                val networkLoc = if (location != null) {
+                    LocationData(location.latitude, location.longitude)
+                } else {
+                    val last = fusedLocationClient.lastLocation.await()
+                    if (last != null) LocationData(last.latitude, last.longitude) else null
+                }
+                switchToNetworkPdrMode(networkLoc)
+            }
+        } catch (e: Exception) {
+            Log.e("LocationGPS", "Error checking location: ${e.message}")
+            switchToNetworkPdrMode(null)
+        }
     }
 
-    private fun switchToGPS() {
-        if (!isPdrActive && locationCallback != null) return // Already in GPS
-        Log.d("LocationGPS", ">>> Switching to GPS Mode")
+    private fun switchToGpsMode() {
+        if (currentMode == "GPS (High Accuracy)") return
 
-        isPdrActive = false
+        Log.d("LocationGPS", ">>> Switching to GPS Mode")
+        currentMode = "GPS (High Accuracy)"
+        onStatusChanged?.invoke(currentMode)
+
+        // Stop PDR, Start High Accuracy GPS
         pdrSystem.stop()
-        startGpsUpdates()
+        startActiveUpdates(Priority.PRIORITY_HIGH_ACCURACY)
+    }
+
+    private fun switchToNetworkPdrMode(startLocation: LocationData?) {
+        // If we are already in this mode, just ensure PDR is running if needed
+        if (currentMode == "Wifi/Network + PDR") {
+            // Optional: Update PDR reference if we got a fresh network location?
+            return
+        }
+
+        Log.d("LocationGPS", ">>> Switching to Network + PDR Mode")
+        currentMode = "Wifi/Network + PDR"
+        onStatusChanged?.invoke(currentMode)
+
+        // Start Balanced Updates (Wifi/Cell) to assist PDR
+        startActiveUpdates(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+
+        // Start PDR
+        if (startLocation != null) {
+            pdrSystem.start(startLocation)
+        } else {
+            Log.w("LocationGPS", "Cannot start PDR: No start location available")
+        }
     }
 
     @SuppressLint("MissingPermission")
-    private fun startGpsUpdates() {
-        if (!hasLocationPermission(context)) return
-        if (locationCallback != null) return
+    private fun startActiveUpdates(priority: Int) {
+        stopActiveUpdates()
 
-        locationCallback = object : LocationCallback() {
+        activeLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let {
                     val locData = LocationData(it.latitude, it.longitude)
-                    lastKnownLocation = locData
-                    updateListener?.invoke(locData)
-                    // Note: We don't auto-switch here anymore. We wait for the timer
-                    // or checkAndSwitchMode logic.
+
+                    // In GPS mode, update UI directly.
+                    if (currentMode == "GPS (High Accuracy)") {
+                        updateListener?.invoke(locData)
+                    } else {
+                        // In Network+PDR mode, the network location helps but PDR drives the fine movement.
+                        // We could use this to drift-correct PDR if implemented.
+                        // For now, PDRSystem callback handles the UI updates.
+                    }
                 }
             }
         }
 
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000)
-            .setMinUpdateDistanceMeters(2f)
+        val request = LocationRequest.Builder(priority, 500) // Update every 5s
+            .setMinUpdateDistanceMeters(2f) // testlocation used 5f, studentstories used 2f
             .build()
 
-        fusedLocationClient.requestLocationUpdates(request, locationCallback!!, Looper.getMainLooper())
+        fusedLocationClient.requestLocationUpdates(request, activeLocationCallback!!, Looper.getMainLooper())
     }
 
-    private fun stopGpsUpdates() {
-        locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
-        locationCallback = null
-    }
-
-    private fun hasLocationPermission(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    private fun stopActiveUpdates() {
+        activeLocationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
+        activeLocationCallback = null
     }
 }
