@@ -1,0 +1,110 @@
+# HCMUS Physics May Cry - Student Stories
+
+An Android application for the "Physics May Cry" event at HCMUS, designed to let users share and discover event-related stories.
+
+---
+
+## Server
+
+This project uses a server running on Google Colab.
+
+### Prerequisites
+
+#### 1. Ngrok Account & Token
+
+You need a free Ngrok account to expose the Colab server to the internet.
+
+1. Sign up at [ngrok.com](https://ngrok.com).
+2. Navigate to the [Your Authtoken](https://dashboard.ngrok.com/get-started/your-authtoken) page and copy your token.
+
+#### 2. Google AI (Gemini) API Key
+
+1. Go to the [Google AI Studio API Keys](https://aistudio.google.com/app/api-keys) page.
+2. Click **Create API key**.
+3. Follow the instructions to generate your key.
+
+#### 3. Setup Firebase
+
+### Running the Server
+
+1. **Open the Colab Notebook**
+    - Access the server code here: [Google Colab](https://colab.research.google.com/drive/1pmE5y1WtK-zsrIINoejdq15co_tSb90r?usp=sharing)
+
+2. **Configure Secrets**
+    - In the Colab notebook, locate the cells for `NGROK_TOKEN` and `GEMINI_API_KEY`.
+    - Paste your Ngrok token and Gemini API key into the respective fields.
+
+3. **Run the Notebook**
+    - Execute all cells in the notebook to start the server.
+
+    ---
+
+## Client
+
+This section guides you through setting up, configuring, and running the Android client application.
+
+### Prerequisites
+
+- Android Studio (latest version recommended)
+- JDK 17 or higher
+- An Android device or emulator (API level 26+)
+
+### Configuration
+
+Before building the app, you need to configure the Firebase connection and the backend API server URL.
+
+#### 1. Firebase Configuration
+
+The app uses Firebase for various backend services.
+
+- **File to Change:** `app/google-services.json`
+- **Action:** Replace the existing file with your own `google-services.json` file, which you can download from your project's settings in the [Firebase Console](https://console.firebase.google.com/).
+
+#### 2. API Server URL
+
+The app connects to a backend server for data. You must update the server's base URL in the code.
+
+- **File 1:** `app/src/main/java/com/example/afinal/data/network/ApiService.kt`
+  - **Line to change (approx. 38):** Update the `BASE_URL` constant with your server's public URL.
+
+        ```kotlin
+        private const val BASE_URL = "YOUR_NGROK_OR_SERVER_URL"
+        ```
+
+- **File 2:** `app/src/main/java/com/example/afinal/ui/screen/AddPostScreen.kt`
+  - **Line to change (approx. 145):** Update the `ngrokUrl` state variable.
+
+        ```kotlin
+        var ngrokUrl by remember { mutableStateOf("YOUR_NGROK_OR_SERVER_URL") }
+        ```
+
+### Setup and Installation
+
+1. **Clone the Repository**
+
+    ```bash
+    git clone https://github.com/your-repository/hcmus-physicsmaycry-studentstories.git
+    ```
+
+2. **Open in Android Studio**
+    - Launch Android Studio.
+    - Select "Open an Existing Project" and choose the cloned directory.
+
+3. **Sync Gradle**
+    - Allow Android Studio to sync the project automatically. If it fails, manually sync by clicking the "Sync Project with Gradle Files" icon in the toolbar.
+
+4. **Build the APK**
+    - Navigate to `Build` -> `Build Bundle(s) / APK(s)` -> `Build APK(s)`.
+    - Once the build is complete, click the "locate" link in the notification to find the APK file at `app/build/outputs/apk/debug/app-debug.apk`.
+
+5. **Install the App**
+    - **Enable USB Debugging** on your Android device from Developer Options.
+    - Connect your device via USB.
+    - Install the APK using Android Debug Bridge (`adb`):
+
+      ```bash
+      adb install app/build/outputs/apk/debug/app-debug.apk
+      ```
+
+    - Alternatively, transfer the APK file to your device and install it using a file manager.
+
