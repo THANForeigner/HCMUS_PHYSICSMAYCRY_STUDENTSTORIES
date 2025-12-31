@@ -25,6 +25,11 @@ You need a free Ngrok account to expose the Colab server to the internet.
 
 #### 3. Setup Firebase
 
+**Note:** Make sure you have created/enabled the following services in your Firebase Console:
+*   **Firestore Database**
+*   **Storage**
+*   **Realtime Database**
+
 ### Running the Server
 
 1. **Open the Colab Notebook**
