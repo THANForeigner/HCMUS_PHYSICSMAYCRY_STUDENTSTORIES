@@ -15,6 +15,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import java.util.Collections
+import kotlin.math.ceil
 
 class IndoorDetector(private val context: Context) {
 
@@ -68,28 +69,28 @@ class IndoorDetector(private val context: Context) {
                 }
 
                 usedSatellitesSnr.sort()
-                val medianSnr = if (usedSatellitesSnr.size % 2 == 1) {
-                    usedSatellitesSnr[usedSatellitesSnr.size / 2]
-                } else {
-                    (usedSatellitesSnr[usedSatellitesSnr.size / 2 - 1] + usedSatellitesSnr[usedSatellitesSnr.size / 2]) / 2.0f
-                }
 
-                // 3. Use the Median SNR for the threshold checks
+                val percentileIndex = ceil(usedSatellitesSnr.size * 0.7).toInt() - 1
+                // Safety clamp to ensure valid index
+                val safeIndex = percentileIndex.coerceIn(0, usedSatellitesSnr.lastIndex)
+
+                val snrMetric = usedSatellitesSnr[safeIndex]
+
+                // 3. Evaluate Status
                 val isIndoor =
-                    (medianSnr <= INDOOR_SNR_THRESHOLD && usedSatCount <= MAX_INDOOR_SATELLITES)
+                    (snrMetric <= INDOOR_SNR_THRESHOLD && usedSatCount <= MAX_INDOOR_SATELLITES)
 
                 val isOutdoor =
-                    (medianSnr >= OUTDOOR_SNR_THRESHOLD && usedSatCount >= MIN_OUTDOOR_SATELLITES)
+                    (snrMetric >= OUTDOOR_SNR_THRESHOLD && usedSatCount >= MIN_OUTDOOR_SATELLITES)
 
                 when {
                     isIndoor -> trySend(true)
                     isOutdoor -> trySend(false)
                     else -> {
-                        // In transition/semi-outdoor, trust the SNR metric more than the count
-                        trySend(medianSnr <= INDOOR_SNR_THRESHOLD)
+                        // In transition/semi-outdoor, trust the robust SNR metric heavily
+                        trySend(snrMetric <= INDOOR_SNR_THRESHOLD)
                     }
-                }
-            }
+                }            }
         }
 
         locationManager.registerGnssStatusCallback(callback, handler)
