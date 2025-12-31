@@ -138,4 +138,8 @@ class PDRSystem(private val context: Context, private val onLocationUpdate: (Loc
             onLocationUpdate(newLoc)
         }
     }
+    fun calibrateLocation(newLocation: LocationData) {
+        this.lastLocation = newLocation
+        Log.d("PDRSystem", "Location calibrated/corrected to: ${newLocation.latitude}, ${newLocation.longitude}")
+    }
 }

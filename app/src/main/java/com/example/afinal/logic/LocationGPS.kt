@@ -203,9 +203,7 @@ class LocationGPS(private val context: Context) {
                     if (currentMode == "GPS (High Accuracy)") {
                         updateListener?.invoke(locData)
                     } else {
-                        // In Network+PDR mode, the network location helps but PDR drives the fine movement.
-                        // We could use this to drift-correct PDR if implemented.
-                        // For now, PDRSystem callback handles the UI updates.
+                        pdrSystem.calibrateLocation(locData)
                     }
                 }
             }
