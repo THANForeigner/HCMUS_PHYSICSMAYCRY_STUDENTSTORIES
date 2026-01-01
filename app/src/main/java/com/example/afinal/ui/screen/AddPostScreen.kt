@@ -2,7 +2,6 @@ package com.example.afinal.ui.screen
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,13 +26,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.afinal.models.LocationViewModel
-import com.example.afinal.models.PostViewModel
-import com.example.afinal.models.StoryViewModel
+import com.example.afinal.data.model.LocationViewModel
+import com.example.afinal.data.model.PostViewModel
+import com.example.afinal.data.model.StoryViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers

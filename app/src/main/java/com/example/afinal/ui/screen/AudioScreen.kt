@@ -1,6 +1,5 @@
 package com.example.afinal.ui.screen
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -29,11 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.afinal.data.model.Story
 import com.example.afinal.logic.LocationGPS
-import com.example.afinal.models.LocationViewModel
-import com.example.afinal.models.StoryViewModel
+import com.example.afinal.data.model.LocationViewModel
+import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.navigation.Routes
-import com.example.afinal.ultis.DistanceCalculator
-import com.example.afinal.ultis.IndoorDetector
+import com.example.afinal.logic.DistanceCalculator
+import com.example.afinal.logic.IndoorDetector
 import com.example.afinal.ui.component.StoryCard
 import com.example.afinal.ui.theme.AppGradients
 import android.widget.Toast

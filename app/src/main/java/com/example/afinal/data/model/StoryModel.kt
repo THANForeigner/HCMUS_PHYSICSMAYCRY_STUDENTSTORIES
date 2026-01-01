@@ -1,6 +1,5 @@
-package com.example.afinal.models
+package com.example.afinal.data.model
 
-import com.example.afinal.data.model.Position
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.PropertyName

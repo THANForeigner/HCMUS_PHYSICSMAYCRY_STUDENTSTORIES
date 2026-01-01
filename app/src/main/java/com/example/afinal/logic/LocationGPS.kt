@@ -4,14 +4,12 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Build
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.example.afinal.data.LocationData
-import com.example.afinal.models.LocationViewModel
-import com.example.afinal.ultis.IndoorDetector
+import com.example.afinal.data.model.LocationViewModel
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.*

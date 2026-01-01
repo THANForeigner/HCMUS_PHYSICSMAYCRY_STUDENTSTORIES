@@ -13,10 +13,7 @@ import com.example.afinal.data.model.RecommendRequest
 import com.example.afinal.data.model.AudioItem // [THÊM] Import AudioItem
 import com.example.afinal.data.model.ApiResponse // [THÊM] Import ApiResponse
 import com.example.afinal.data.network.RetrofitClient
-import com.example.afinal.logic.AudioPlayerService
-import com.example.afinal.logic.MainActivity
-import com.example.afinal.models.LocationModel
-import com.example.afinal.ultis.DistanceCalculator
+import com.example.afinal.data.model.LocationModel
 import com.google.android.gms.location.LocationResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore

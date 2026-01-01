@@ -1,4 +1,4 @@
-package com.example.afinal.models
+package com.example.afinal.data.model
 
 import android.util.Log
 import androidx.compose.runtime.State
@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.afinal.data.model.*
 import com.example.afinal.data.network.RetrofitClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
@@ -20,6 +19,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.collections.iterator
 
 class StoryViewModel : ViewModel() {
     // --- STATE MANAGEMENT ---

@@ -31,8 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.afinal.models.LocationModel
-import com.example.afinal.models.StoryViewModel
+import com.example.afinal.data.model.LocationModel
+import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.ui.component.StoryCard
 import com.example.afinal.ui.theme.AppGradients
 

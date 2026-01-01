@@ -37,7 +37,7 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ui.theme.AppGradients
-import com.example.afinal.models.StoryViewModel
+import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.ui.component.StoryCard
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase

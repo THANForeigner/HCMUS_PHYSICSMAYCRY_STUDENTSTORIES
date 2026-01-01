@@ -25,15 +25,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.afinal.data.model.Story
 import com.example.afinal.logic.AudioPlayerService
-import com.example.afinal.models.AuthViewModel
-import com.example.afinal.models.StoryViewModel
+import com.example.afinal.data.model.AuthViewModel
+import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.ui.theme.AppGradients
 import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material.icons.filled.OpenInFull
 import com.example.afinal.ui.theme.BlueDark
 import com.example.afinal.ui.theme.BlueLight
 import com.example.afinal.ui.theme.BluePrimary

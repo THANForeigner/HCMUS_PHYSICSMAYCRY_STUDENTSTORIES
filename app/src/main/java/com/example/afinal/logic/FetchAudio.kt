@@ -1,10 +1,10 @@
-package com.example.afinal.ultis
+package com.example.afinal.logic
 
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.example.afinal.models.StoryViewModel
-import com.example.afinal.models.LocationModel
+import com.example.afinal.data.model.StoryViewModel
+import com.example.afinal.data.model.LocationModel
 import com.example.afinal.data.LocationData
 
 /**

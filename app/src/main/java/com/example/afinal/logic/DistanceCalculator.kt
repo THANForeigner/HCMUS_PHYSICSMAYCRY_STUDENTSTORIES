@@ -1,9 +1,9 @@
-package com.example.afinal.ultis
+package com.example.afinal.logic
 
 import android.location.Location
 import android.util.Log
 import com.example.afinal.data.ZoneData
-import com.example.afinal.models.LocationModel
+import com.example.afinal.data.model.LocationModel
 import com.google.android.gms.maps.model.LatLng
 
 object DistanceCalculator {

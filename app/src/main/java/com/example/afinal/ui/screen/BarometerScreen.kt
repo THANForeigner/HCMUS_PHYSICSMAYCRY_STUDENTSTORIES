@@ -9,7 +9,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.afinal.models.SensorViewModel
+import com.example.afinal.data.model.SensorViewModel
 
 @Composable
 fun BarometerScreen() {

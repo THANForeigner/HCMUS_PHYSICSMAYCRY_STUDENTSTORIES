@@ -1,10 +1,8 @@
-package com.example.afinal.models
+package com.example.afinal.data.model
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.afinal.data.model.Comment
-import com.example.afinal.data.model.PostModel
 import com.example.afinal.data.repository.PostRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

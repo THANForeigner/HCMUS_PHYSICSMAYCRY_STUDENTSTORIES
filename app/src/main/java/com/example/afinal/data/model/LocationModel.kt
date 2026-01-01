@@ -1,4 +1,4 @@
-package com.example.afinal.models
+package com.example.afinal.data.model
 
 import com.google.firebase.firestore.DocumentId
 import com.example.afinal.data.ZoneData

@@ -1,4 +1,4 @@
-package com.example.afinal.ultis
+package com.example.afinal.logic
 
 import android.os.Handler
 import android.os.Looper
@@ -14,7 +14,6 @@ import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import java.util.Collections
 import kotlin.math.ceil
 
 class IndoorDetector(private val context: Context) {

@@ -23,12 +23,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.afinal.logic.LocationGPS
-import com.example.afinal.models.LocationViewModel
-import com.example.afinal.models.StoryViewModel
-import com.example.afinal.navigation.Routes
+import com.example.afinal.data.model.LocationViewModel
+import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.ui.theme.AppGradients
-import com.example.afinal.ultis.DistanceCalculator
-import com.example.afinal.ultis.IndoorDetector
+import com.example.afinal.logic.DistanceCalculator
+import com.example.afinal.logic.IndoorDetector
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*

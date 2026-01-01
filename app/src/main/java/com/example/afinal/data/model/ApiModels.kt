@@ -1,10 +1,8 @@
 package com.example.afinal.data.model
 
 import android.util.Log
-import com.example.afinal.models.StoryModel
 import com.google.firebase.Timestamp
 import com.google.gson.annotations.SerializedName
-import java.text.SimpleDateFormat
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException

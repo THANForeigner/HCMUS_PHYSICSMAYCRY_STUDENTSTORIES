@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,11 +25,10 @@ import androidx.navigation.navArgument
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.afinal.ui.screen.*
 import com.example.afinal.ui.theme.FINALTheme
-import com.example.afinal.models.LocationViewModel
-import com.example.afinal.models.StoryViewModel
+import com.example.afinal.data.model.LocationViewModel
+import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.logic.AudioPlayerService
-import com.example.afinal.models.AuthViewModel
-import com.example.afinal.models.StoryModel
+import com.example.afinal.data.model.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.example.afinal.data.model.Story
 import com.example.afinal.ui.theme.*

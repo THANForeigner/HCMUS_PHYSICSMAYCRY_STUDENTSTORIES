@@ -32,9 +32,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.afinal.models.LocationViewModel
+import com.example.afinal.data.model.LocationViewModel
 import com.example.afinal.data.model.Story
-import com.example.afinal.models.StoryViewModel
+import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.navigation.AppNavigation
 import com.example.afinal.navigation.Routes
 import com.example.afinal.ui.screen.MiniPlayer
