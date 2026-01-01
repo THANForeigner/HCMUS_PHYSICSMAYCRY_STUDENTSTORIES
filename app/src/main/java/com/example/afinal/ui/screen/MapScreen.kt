@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.afinal.logic.LocationGPS
+import com.example.afinal.logic.LocationTracking
 import com.example.afinal.data.model.LocationViewModel
 import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.ui.theme.AppGradients
@@ -57,14 +57,14 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
 
     // --- LOGIC GPS & PDR INTEGRATION ---
     val scope = rememberCoroutineScope()
-    val locationGPS = remember { LocationGPS(context) }
+    val locationTracking = remember { LocationTracking(context) }
 
     DisposableEffect(hasForegroundPermission) {
         if (hasForegroundPermission) {
-            locationGPS.startTracking(locationViewModel, scope)
+            locationTracking.startTracking(locationViewModel, scope)
         }
         onDispose {
-            locationGPS.stopTracking()
+            locationTracking.stopTracking()
         }
     }
 
@@ -89,7 +89,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
             )
 
             // [FIX] Enable PDR only if In Zone (and Indoor logic handled by LocationGPS)
-            locationGPS.setZoneStatus(targetLocation != null)
+            locationTracking.setZoneStatus(targetLocation != null)
 
             activeLocationId = targetLocation?.id
 
@@ -99,7 +99,7 @@ fun MapScreen(navController: NavController, storyViewModel: StoryViewModel) {
                 storyViewModel.clearLocation()
             }
         } else {
-            locationGPS.setZoneStatus(false)
+            locationTracking.setZoneStatus(false)
         }
     }
 

@@ -27,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.afinal.data.model.Story
-import com.example.afinal.logic.LocationGPS
+import com.example.afinal.logic.LocationTracking
 import com.example.afinal.data.model.LocationViewModel
 import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.navigation.Routes
@@ -120,13 +120,13 @@ fun AudiosScreen(
     // --- LOGIC GPS & PDR INTEGRATION ---
     val scope = rememberCoroutineScope()
     // Initialize the LocationGPS system
-    val locationGPS = remember { LocationGPS(context) }
+    val locationTracking = remember { LocationTracking(context) }
 
     // Start Tracking Lifecycle
     DisposableEffect(Unit) {
-        locationGPS.startTracking(locationViewModel, scope)
+        locationTracking.startTracking(locationViewModel, scope)
         onDispose {
-            locationGPS.stopTracking()
+            locationTracking.stopTracking()
         }
     }
 
@@ -143,7 +143,7 @@ fun AudiosScreen(
             // [FIX] Update LocationGPS with zone status.
             // If in a zone -> true, else -> false.
             // This enables the "Indoor + In Zone" condition for PDR.
-            locationGPS.setZoneStatus(currentLoc != null)
+            locationTracking.setZoneStatus(currentLoc != null)
 
             if (currentLoc != null) {
                 // [FIX] Show audio and location (Original Logic)
@@ -156,7 +156,7 @@ fun AudiosScreen(
             }
         } else {
             // No location or no data
-            locationGPS.setZoneStatus(false)
+            locationTracking.setZoneStatus(false)
         }
     }
 
