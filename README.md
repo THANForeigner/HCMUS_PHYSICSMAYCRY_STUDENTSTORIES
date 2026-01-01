@@ -25,11 +25,69 @@ You need a free Ngrok account to expose the Colab server to the internet.
 
 #### 3. Setup Firebase
 
-**Note:** Make sure you have created/enabled the following services in your Firebase Console:
-*   **Firestore Database**
-*   **Storage**
-*   **Realtime Database**
+**Note:** Make sure you have created/enabled the following services in your Firebase Console and you need to upgrade your project to Blaze plan to use Storage:
 
+##### 3.1. Enable Cloud Firestore
+
+1. **Navigate to Database:**
+   * Open your project in the Firebase Console.
+   * In the left-hand menu, expand the **Build** dropdown.
+   * Click on **Firestore Database**.
+2. **Create Database:**
+   * Click the **Create database** button.
+3. **Select Location:**
+   * Choose a **Location** (e.g., `nam5 (us-central)`).
+   * *Note: This cannot be changed later.*
+   * Click **Next**.
+4. **Secure Rules:**
+   * Select **Production mode** (secure) or **Test mode** (open for 30 days).
+   * Click **Enable**.
+5. **Note for data saving:**
+   * Base on our project concept if your want to create an indoor or outdoor location please follow this file structure:
+   * For outdoor location:
+        * /locations
+            * /locations
+                * /outdoor_locations
+                    * /Location_A
+                        * /posts
+     * In outdoor location the fields are just the latitude, longitude of the location, and the bool "zone" is false
+   * For indoor location:
+        * /locations
+            * /locations
+                * /indoor_locations
+                    * /Building_I
+                        * /floor
+                            * /1
+                                * posts
+        * In indoor location the fields are the latitude and longitude of the locations center, the bool "zone" is true, then the latitude and longitude of each conner of the bulding.
+---
+
+##### 3.2. Enable Firebase Storage
+
+1. **Navigate to Storage:**
+   * In the left-hand menu under **Build**, click on **Storage**.
+2. **Get Started:**
+   * Click **Get started**.
+3. **Set Up Rules:**
+   * Choose **Production mode** or **Test mode**.
+   * Click **Next**.
+4. **Set Cloud Location:**
+   * Confirm the location (usually matches your Firestore setting).
+   * Click **Done**.
+---
+
+##### 3.3. Enable Realtime Database
+
+1. **Navigate to Realtime Database:**
+   * In the left-hand menu under **Build**, click on **Realtime Database**.
+2. **Create Database:**
+   * Click **Create Database**.
+3. **Select Location:**
+   * Choose a region (e.g., `United States`, `Belgium`, or `Singapore`).
+   * Click **Next**.
+4. **Configure Security Rules:**
+   * Select **Locked mode** or **Test mode**.
+   * Click **Enable**.
 ### Running the Server
 
 1. **Open the Colab Notebook**
@@ -64,6 +122,19 @@ The app uses Firebase for various backend services.
 
 - **File to Change:** `app/google-services.json`
 - **Action:** Replace the existing file with your own `google-services.json` file, which you can download from your project's settings in the [Firebase Console](https://console.firebase.google.com/).
+- To download Configuration File (google-services.json)
+
+1.  **Open Project Settings:**
+    * In the Firebase Console, click the **Gear icon** next to "Project Overview" in the top-left sidebar.
+    * Select **Project settings**.
+2.  **Locate Your App:**
+    * Scroll down to the **Your apps** card at the bottom of the **General** tab.
+    * *Note: If you haven't added an Android app yet, click the **Android icon** to create one first.*
+3.  **Download the File:**
+    * Select your Android app from the list (if you have multiple).
+    * Click the button labeled **google-services.json** to download the file.
+4.  **Add to Project:**
+    * Move the downloaded file into the **app** directory of your Android project (e.g., `MyProject/app/google-services.json`).
 
 #### 2. API Server URL
 
