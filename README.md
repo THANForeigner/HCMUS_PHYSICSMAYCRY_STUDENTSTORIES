@@ -184,3 +184,38 @@ The app connects to a backend server for data. You must update the server's base
 
     - Alternatively, transfer the APK file to your device and install it using a file manager.
 
+6. **Get the API Key & Enable SDK**
+
+    1.  Go to Google Cloud Console:
+        * Navigate to the [Google Cloud Console](https://console.cloud.google.com/).
+        * Select your project (or create a new one).
+    2.  Enable Maps SDK for Android:
+        * In the sidebar menu, go to **APIs & Services** > **Library**.
+        * Search for **"Maps SDK for Android"**.
+        * Click on the result and click **Enable**.
+    3.  Create Credentials:
+        * Go to **APIs & Services** > **Credentials**.
+        * Click **+ CREATE CREDENTIALS** at the top.
+        * Select **API key**.
+        * **Copy the API key** generated (it starts with `AIza...`).
+
+    4. Add Key to Android Manifest
+
+    * Open Manifest File:
+        * In Android Studio, navigate to `app/src/main/AndroidManifest.xml`.
+    *  Add Meta-Data:
+        * Paste the following code inside the `<application>` tag, but *outside* of any `<activity>` tags.
+
+        ```xml
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="YOUR_API_KEY_HERE" />
+        ```
+
+    3. (Optional but Recommended) Restrict Your Key
+    To prevent unauthorized use of your key (and potential billing charges):
+        *  Go back to the **Credentials** page in Google Cloud Console.
+        *  Click the **Edit icon** (pencil) next to your API Key.
+        *  Under **Application restrictions**, select **Android apps**.
+        *  Click **Add an item** and enter your **Package name** and **SHA-1 certificate fingerprint**.
+        *  Click **Save**.
