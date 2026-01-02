@@ -116,10 +116,6 @@ class StoryViewModel : ViewModel() {
         return _currentStories.value.find { it.id == id }
             ?: _allStories.value.find { it.id == id }
     }
-
-    /**
-     * Get DocumentReference of story from Firestore
-     */
     fun getStoryDocumentReference(storyId: String, locationId: String? = null): DocumentReference? {
         val db = FirebaseFirestore.getInstance()
         val locId = locationId ?: _currentLocationId.value
@@ -324,7 +320,6 @@ class StoryViewModel : ViewModel() {
             return
         }
 
-        // Clean up old listener before starting a new one
         storyListener?.remove()
 
         _currentLocationId.value = locationId
@@ -384,7 +379,6 @@ class StoryViewModel : ViewModel() {
                 async {
                     val extractedLoc = locationId ?: doc.reference.path.split("/").getOrNull(3) ?: ""
 
-                    // Parse to Story class
                     val story = try {
                         var model = doc.toObject(Story::class.java)
                         // Assign ID and locationName through .copy()

@@ -114,8 +114,6 @@ class AudioPlayerService : Service() {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         createChannel(manager)
 
-        // [IMPORTANT] Cancel the "Discovery" notification if we are playing that story
-        // This makes sure the user doesn't see "Found: Story X" and "Playing: Story X" at the same time
         currentStoryId?.let { id ->
             manager.cancel(id.hashCode())
         }

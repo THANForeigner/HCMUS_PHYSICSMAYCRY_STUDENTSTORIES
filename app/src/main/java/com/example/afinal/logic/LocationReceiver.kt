@@ -38,7 +38,6 @@ class LocationReceiver : BroadcastReceiver() {
 
             Log.d(TAG, ">>> Background Location: ${location.latitude}, ${location.longitude}")
 
-            // Giữ cho BroadcastReceiver sống đủ lâu để chạy Coroutine
             val pendingResult = goAsync()
 
             CoroutineScope(Dispatchers.IO).launch {
@@ -57,7 +56,6 @@ class LocationReceiver : BroadcastReceiver() {
         val db = FirebaseFirestore.getInstance()
         val allLocations = mutableListOf<LocationModel>()
 
-        // 1. Lấy danh sách địa điểm từ Firestore để so sánh khoảng cách
         val collections = mapOf("indoor_locations" to "indoor", "outdoor_locations" to "outdoor")
 
         for ((collectionName, type) in collections) {
@@ -93,54 +91,42 @@ class LocationReceiver : BroadcastReceiver() {
             }
         }
 
-        // 2. Tìm địa điểm gần nhất
         val currentLoc = DistanceCalculator.findNearestLocation(lat, lng, allLocations)
 
         if (currentLoc != null) {
             Log.d(TAG, ">>> Entered Location: ${currentLoc.id}. Starting logic...")
-            // Gọi hàm xử lý logic: Recommend -> Fallback
             fetchRecommendationOrLatestStory(context, currentLoc)
         } else {
             Log.d(TAG, ">>> No locations match.")
         }
     }
 
-    /**
-     * Logic:
-     * 1. Gọi API Recommend (giống StoryViewModel).
-     * 2. Nếu có kết quả -> Notify Story đầu tiên.
-     * 3. Nếu rỗng -> Lấy story mới nhất từ Firestore.
-     */
     private suspend fun fetchRecommendationOrLatestStory(context: Context, location: LocationModel) {
         val userId = FirebaseAuth.getInstance().currentUser?.uid ?: "test_user"
 
-        // --- BƯỚC 1: GỌI API RECOMMENDATION ---
         try {
             Log.d(TAG, "Fetching recommendations for user: $userId at ${location.locationName}")
             val request = RecommendRequest(userId = userId, nameBuilding = location.locationName)
 
-            // Gọi API
             val response: Response<ApiResponse> = RetrofitClient.api.getRecommendations(request)
 
-            // [SỬA] Đã có import retrofit2.Response nên isSuccessful sẽ hoạt động
             if (response.isSuccessful) {
-                val apiResponse = response.body() // Lấy body
+                val apiResponse = response.body()
                 val results = apiResponse?.results
 
                 if (!results.isNullOrEmpty()) {
                     val firstRecommend: AudioItem = results[0]
                     Log.d(TAG, ">>> Found Recommendation: ${firstRecommend.title}")
 
-                    // [SỬA] Dùng .audioUrl thay vì .audio_url
                     val resolvedAudioUrl = resolveAudioUrl(firstRecommend.audioUrl)
 
                     if (resolvedAudioUrl.isNotEmpty()) {
                         sendDiscoveryNotification(
                             context = context,
                             locationId = location.id,
-                            storyId = firstRecommend.firestoreId, // [SỬA] Dùng .firestoreId thay vì .id
+                            storyId = firstRecommend.firestoreId,
                             title = firstRecommend.title,
-                            user = firstRecommend.userName ?: "Anonymous", // [SỬA] Dùng .userName (hoặc fallback)
+                            user = firstRecommend.userName ?: "Anonymous",
                             audioUrl = resolvedAudioUrl,
                             isRecommend = true
                         )
@@ -154,7 +140,6 @@ class LocationReceiver : BroadcastReceiver() {
             Log.e(TAG, "Error fetching recommendations API", e)
         }
 
-        // --- BƯỚC 2: FALLBACK (DỰ PHÒNG) - LẤY STORY MỚI NHẤT TỪ FIRESTORE ---
         Log.d(TAG, ">>> Fallback to Firestore (Fetching Latest Story)")
         val db = FirebaseFirestore.getInstance()
 
@@ -166,7 +151,6 @@ class LocationReceiver : BroadcastReceiver() {
                 .collection("outdoor_locations").document(location.id)
         }
 
-        // Logic cũ: lấy tầng 1 nếu là indoor (có thể cần sửa nếu logic app thay đổi)
         val postsQuery = if (location.type == "indoor") {
             docRef.collection("floor").document("1").collection("posts")
         } else {
@@ -174,7 +158,6 @@ class LocationReceiver : BroadcastReceiver() {
         }
 
         try {
-            // Sắp xếp theo thời gian giảm dần để lấy bài MỚI NHẤT
             val snapshot = postsQuery
                 .orderBy("created_at", Query.Direction.DESCENDING)
                 .limit(1)
@@ -211,7 +194,6 @@ class LocationReceiver : BroadcastReceiver() {
         }
     }
 
-    // Hàm phụ trợ xử lý link gs://
     private suspend fun resolveAudioUrl(originalUrl: String): String {
         if (originalUrl.isEmpty()) return ""
 

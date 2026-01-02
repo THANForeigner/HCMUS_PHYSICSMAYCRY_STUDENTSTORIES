@@ -7,10 +7,6 @@ import com.example.afinal.data.model.StoryViewModel
 import com.example.afinal.data.model.LocationModel
 import com.example.afinal.data.LocationData
 
-/**
- * Handles the logic for detecting nearby locations and triggering audio fetches.
- * Implements "Handover & Lock" logic for smoother Indoor/Outdoor transitions.
- */
 @Composable
 fun FetchAudio(
     userLocation: LocationData?,
@@ -19,27 +15,19 @@ fun FetchAudio(
     currentLocationId: String?,
     storyViewModel: StoryViewModel
 ) {
-    // MAIN LOGIC: Pinning & Tracking
     LaunchedEffect(userLocation, allLocations, isUserIndoor) {
         val userLoc = userLocation
 
-        // Safety check: ensure we have data
         if (allLocations.isEmpty()) return@LaunchedEffect
 
-        // 1. ANALYZE CURRENT STATE
         val currentLocModel = allLocations.find { it.id == currentLocationId }
         val isCurrentlyPinnedIndoor = currentLocModel?.type == "indoor"
 
-        // 2. INDOOR LOCK: If we are physically indoors AND validly pinned to an indoor ID
         if (isUserIndoor && isCurrentlyPinnedIndoor) {
-            // STOP PROCESSING. We are locked to this building.
-            // We ignore GPS updates here to prevent "drift" or clearing the list.
             Log.d("FetchAudio", "Indoor Locked: Staying at $currentLocationId")
             return@LaunchedEffect
         }
 
-        // 3. HANDOVER: Transitioning from Outdoor -> Indoor
-        // If the detector says "Indoor" but we are currently at an "Outdoor" location (or null)
         if (isUserIndoor && !isCurrentlyPinnedIndoor) {
 
 
@@ -56,14 +44,12 @@ fun FetchAudio(
                         )
                     }
 
-                // If we found a building close to our last point (e.g., within 50m), SNAP to it.
                 if (nearestIndoor != null) {
                     val dist = DistanceCalculator.getDistance(
                         referenceLat, referenceLng,
                         nearestIndoor.latitude, nearestIndoor.longitude
                     )
 
-                    // 50m Threshold to associate the outdoor point with the building entrance
                     if (dist < 25.0) {
                         Log.d("FetchAudio", "Handover: Switching from ${currentLocationId ?: "GPS"} to Indoor: ${nearestIndoor.id}")
                         storyViewModel.fetchStoriesForLocation(nearestIndoor.id)
@@ -74,7 +60,6 @@ fun FetchAudio(
         }
 
         if (userLoc != null) {
-            // Filter candidates based on mode
             val candidates = if (isUserIndoor) {
                 allLocations.filter { it.type == "indoor" }
             } else {
@@ -92,8 +77,6 @@ fun FetchAudio(
                     storyViewModel.fetchStoriesForLocation(foundLocation.id)
                 }
             } else {
-                // Exit condition: Only clear if we are NOT pinned/locked
-                // If we are outdoor and walked away from everything, clear it.
                 if (currentLocationId != null) {
                     storyViewModel.clearLocation()
                 }

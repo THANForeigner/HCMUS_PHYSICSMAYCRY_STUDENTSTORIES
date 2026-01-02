@@ -148,7 +148,6 @@ fun MainAppScreen(
             composable(Routes.HOME) {
                 HomeScreen(
                     storyViewModel = storyViewModel,
-                    // 1. Chuyển tab Map (Dùng bottomNavController)
                     onNavigateToMap = {
                         bottomNavController.navigate(Routes.MAP) {
                             popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
@@ -156,7 +155,6 @@ fun MainAppScreen(
                             restoreState = true
                         }
                     },
-                    // 2. Chuyển tab Audios (Dùng bottomNavController)
                     onNavigateToAudios = {
                         bottomNavController.navigate(Routes.AUDIOS) {
                             popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
@@ -164,7 +162,6 @@ fun MainAppScreen(
                             restoreState = true
                         }
                     },
-                    // 3. Mở Player (Dùng mainNavController - Vì Player nằm ngoài BottomBar)
                     onStoryClick = { storyId ->
                         mainNavController.navigate("${Routes.AUDIO_PLAYER}/$storyId")
                     }
@@ -180,7 +177,7 @@ fun MainAppScreen(
 
             composable(Routes.AUDIOS) {
                 AudiosScreen(
-                    navController = mainNavController, // AudiosScreen có thể giữ nguyên nếu nó chỉ mở Player
+                    navController = mainNavController,
                     storyViewModel = storyViewModel,
                     locationViewModel = locationViewModel
                 )
@@ -194,7 +191,6 @@ fun MainAppScreen(
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {
-    // Định nghĩa danh sách tab với màu chủ đạo riêng
     val items = listOf(
         BottomNavItem(
             title = "Home",
@@ -223,7 +219,7 @@ fun BottomNavigationBar(navController: NavController) {
     )
 
     NavigationBar(
-        containerColor = Color.White, // Nền trắng sạch sẽ
+        containerColor = Color.White,
         tonalElevation = 8.dp
     ) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -250,14 +246,11 @@ fun BottomNavigationBar(navController: NavController) {
                         restoreState = true
                     }
                 },
-                // Cấu hình màu sắc Highlight theo từng item
                 colors = NavigationBarItemDefaults.colors(
-                    // 1. Khi được chọn:
-                    selectedIconColor = Color.White,       // Icon chuyển sang trắng
-                    selectedTextColor = item.color,        // Chữ chuyển sang màu chủ đạo của tab
-                    indicatorColor = item.color,           // Pill (nền icon) có màu chủ đạo
+                    selectedIconColor = Color.White,
+                    selectedTextColor = item.color,
+                    indicatorColor = item.color,
 
-                    // 2. Khi KHÔNG chọn:
                     unselectedIconColor = Color.Gray,
                     unselectedTextColor = Color.Gray
                 )
@@ -266,7 +259,6 @@ fun BottomNavigationBar(navController: NavController) {
     }
 }
 
-// Cập nhật Data Class thêm trường color
 data class BottomNavItem(
     val title: String,
     val route: String,

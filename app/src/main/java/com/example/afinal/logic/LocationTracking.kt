@@ -74,7 +74,7 @@ class LocationTracking(private val context: Context) {
         trackingJob = scope.launch(Dispatchers.Main) {
             while (isActive) {
                 checkAndChooseBestMode()
-                delay(500) // Re-check every 1 minute
+                delay(500) // Re-check every 5s
             }
         }
     }
@@ -100,17 +100,12 @@ class LocationTracking(private val context: Context) {
             }
         }
     }
-
-    /**
-     * Core logic merging TestLocation's accuracy checks with StudentStories' Zone logic.
-     */
     @SuppressLint("MissingPermission")
     private suspend fun checkAndChooseBestMode() {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
 
         Log.d("LocationGPS", "Checking for best provider...")
 
-        // PRIORITY 1: StudentStories Logic
         // If we are strictly Indoor AND In the Zone, force PDR (or Network+PDR)
         if (isIndoor && isInZone) {
             // Use last known location or try to fetch one quickly to start PDR
@@ -124,7 +119,6 @@ class LocationTracking(private val context: Context) {
             return
         }
 
-        // PRIORITY 2: TestLocation Logic (Auto-detection)
         // If not forced by Zone, check GPS quality.
         val tokenSource = CancellationTokenSource()
         val locationTask = fusedLocationClient.getCurrentLocation(
@@ -169,7 +163,6 @@ class LocationTracking(private val context: Context) {
     private fun switchToNetworkPdrMode(startLocation: LocationData?) {
         // If we are already in this mode, just ensure PDR is running if needed
         if (currentMode == "Wifi/Network + PDR") {
-            // Optional: Update PDR reference if we got a fresh network location?
             return
         }
 

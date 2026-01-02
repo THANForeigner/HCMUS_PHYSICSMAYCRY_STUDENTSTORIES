@@ -19,14 +19,10 @@ import kotlin.math.ceil
 class IndoorDetector(private val context: Context) {
 
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-    // Realistic & research-backed thresholds (Marjasz et al. 2024 / Kim et al.)
-    // Note: If using Median, these thresholds (23-28) remain effective for discriminating
-    // "good" outdoor signals from "attenuated" indoor signals.
-    private val INDOOR_SNR_THRESHOLD = 23.0f      // Indoor if metric <= 23
-    private val OUTDOOR_SNR_THRESHOLD = 28.0f     // Outdoor if metric >= 28
-    private val MIN_OUTDOOR_SATELLITES = 7        // Outdoor
-    private val MAX_INDOOR_SATELLITES = 3         // Indoor
+    private val INDOOR_SNR_THRESHOLD = 23.0f
+    private val OUTDOOR_SNR_THRESHOLD = 28.0f
+    private val MIN_OUTDOOR_SATELLITES = 7
+    private val MAX_INDOOR_SATELLITES = 3
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -48,7 +44,7 @@ class IndoorDetector(private val context: Context) {
 
                 val totalSat = status.satelliteCount
                 if (totalSat == 0) {
-                    trySend(true) // No GPS visible → deep indoor
+                    trySend(true) // No GPS visible -> indoor
                     return
                 }
 
@@ -63,19 +59,17 @@ class IndoorDetector(private val context: Context) {
                 }
 
                 if (usedSatCount == 0) {
-                    trySend(true) // No usable signal → indoor
+                    trySend(true) // No usable signal -> indoor
                     return
                 }
 
                 usedSatellitesSnr.sort()
 
                 val percentileIndex = ceil(usedSatellitesSnr.size * 0.7).toInt() - 1
-                // Safety clamp to ensure valid index
                 val safeIndex = percentileIndex.coerceIn(0, usedSatellitesSnr.lastIndex)
 
                 val snrMetric = usedSatellitesSnr[safeIndex]
 
-                // 3. Evaluate Status
                 val isIndoor =
                     (snrMetric <= INDOOR_SNR_THRESHOLD && usedSatCount <= MAX_INDOOR_SATELLITES)
 
@@ -86,7 +80,6 @@ class IndoorDetector(private val context: Context) {
                     isIndoor -> trySend(true)
                     isOutdoor -> trySend(false)
                     else -> {
-                        // In transition/semi-outdoor, trust the robust SNR metric heavily
                         trySend(snrMetric <= INDOOR_SNR_THRESHOLD)
                     }
                 }            }

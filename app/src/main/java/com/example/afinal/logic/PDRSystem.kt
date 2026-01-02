@@ -110,7 +110,6 @@ class PDRSystem(private val context: Context, private val onLocationUpdate: (Loc
     private fun updateLocation() {
         lastLocation?.let { loc ->
             // Current Heading in Radians (adjust -PI/2 or similar depending on device orientation, usually 0 is North)
-            // Note: Standard android azimuth: 0=North, PI/2=East, PI=South, -PI/2=West
 
             // Calculate displacement
             val distance = STEP_LENGTH
