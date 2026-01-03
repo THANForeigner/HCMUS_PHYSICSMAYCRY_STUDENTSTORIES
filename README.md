@@ -91,7 +91,7 @@ You need a free Ngrok account to expose the Colab server to the internet.
 ### Running the Server
 
 ### 1. Open the Colab Notebook
-* **Access the server code here:** [Google Colab](https://colab.research.google.com/drive/1pmE5y1WtK-zsrIINoejdq15co_tSb90r?usp=sharing)
+* **Access the server code here:** [Google Colab](https://colab.research.google.com/drive/1pmE5y1WtK-zsrIINoejdq15co_tSb90r?authuser=1&fbclid=IwY2xjawPF-BZleHRuA2FlbQIxMQBzcnRjBmFwcF9pZAEwAAEeXI0e0xzOlE-nzDQreS2LOmIJy0cc_qGc-S0qFbDWINfDCjpp4hld3pNzow0_aem_GiKVwgWKkNFvvwJ04kkG3w#scrollTo=WYilVHpS1uMk)
 
 ---
 
