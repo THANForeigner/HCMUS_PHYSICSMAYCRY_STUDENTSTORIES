@@ -148,16 +148,17 @@ The json file you download should look like this:
   "universe_domain":
 }
 ```
-Add `"googleapis.com"` in the `"universe_domain"`.
-
-Then copy this json to the `firebase_config` in collab.
+Add `"googleapis.com"` into the `"universe_domain"`.
 
 **Step C: Find the Storage Bucket**
 1.  In the Firebase Console, go to **Build** > **Storage**.
 2.  Copy the URL found at the top (e.g., `your-project.firebasestorage.app`).
 3.  **Note:** Do not include the `gs://` prefix.
 
-**Step D: Replace the keys and tokens in cell two to yours keys and tokens**
+### D: Replace the keys and tokens in cell two to yours keys and tokens
+1. Go to "Secret key" in the collab.
+2. Create keys with the name like the name in each `userdata.get('name')` or you can use your own name; however you need to replace that name in `userdata.get('name')`. 
+3. In the value, copy and paste in the keys and token that you gather above.
 
 ---
 ### 3. Run the Notebook
