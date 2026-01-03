@@ -148,7 +148,9 @@ The json file you download should look like this:
   "universe_domain":
 }
 ```
-Copy this json to the `firebase_config` in collab.
+Add `"googleapis.com"` in the `"universe_domain"`.
+
+Then copy this json to the `firebase_config` in collab.
 
 **Step C: Find the Storage Bucket**
 1.  In the Firebase Console, go to **Build** > **Storage**.
