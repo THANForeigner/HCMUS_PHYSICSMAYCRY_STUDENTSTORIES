@@ -126,11 +126,29 @@ Open the downloaded `.json` file in any text editor. Map the values as follows:
 
 | Script Variable | JSON Key Name | Description |
 | :--- | :--- | :--- |
-| `project_id` | `"project_id"` | Your unique Firebase project name. |
-| `pri_key_id` | `"private_key_id"` | The unique ID for your private key. |
-| `pri_key` | `"private_key"` | The full string starting with `-----BEGIN PRIVATE KEY-----`. |
-| `c_email` | `"client_email"` | The service account robot email. |
-| `c_id` | `"client_id"` | The numeric unique client identifier. |
+|`"project_id"` | Your unique Firebase project name. |
+|`"private_key_id"` | The unique ID for your private key. |
+|`"private_key"` | The full string starting with `-----BEGIN PRIVATE KEY-----`. |
+|`"client_email"` | The service account robot email. |
+|`"client_id"` | The numeric unique client identifier. |
+
+The json file structure you download should be:
+```
+{
+  "type": ,
+  "project_id": ,
+  "private_key_id": ,
+  "private_key": ,
+  "client_email": ,
+  "client_id": ,
+  "auth_uri": ,
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40midterm-8196b.iam.gserviceaccount.com",
+  "universe_domain":
+}
+```
+Copy this json to the `firebase_config` in collab.
 
 **Step C: Find the Storage Bucket**
 1.  In the Firebase Console, go to **Build** > **Storage**.
