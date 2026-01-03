@@ -43,7 +43,7 @@ You need a free Ngrok account to expose the Colab server to the internet.
    * Select **Production mode** (secure) or **Test mode** (open for 30 days).
    * Click **Enable**.
 5. **Note for data saving:**
-   * Base on our project concept if your want to create an indoor or outdoor location please follow this file structure:
+ 
    * For outdoor location:
         * /locations
             * /locations
