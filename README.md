@@ -132,7 +132,7 @@ Open the downloaded `.json` file in any text editor. Map the values as follows:
 |`"client_email"` | The service account robot email. |
 |`"client_id"` | The numeric unique client identifier. |
 
-The json file structure you download should be:
+The json file you download should look like this:
 ```
 {
   "type": ,
