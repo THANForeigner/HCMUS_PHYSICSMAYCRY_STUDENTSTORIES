@@ -113,7 +113,7 @@ Go to the Colab notebook and locate the second cell. You will need to add the fo
 3.  Ensure you have the Gemini API enabled for this key.
 
 #### C. Firebase Service Account (Backend & Storage)
-**Used for:** `project_id`, `pri_key_id`, `pri_key`, `c_email`, `c_id`, and `storage_bucket`.
+**Used for:** `project_id`, `pri_key_id`, `pri_key`, `c_email`, `c_id`, `client_x509_cert_url` and `storage_bucket`.
 
 **Step A: Download the Private Key**
 1.  Open the [Firebase Console](https://console.firebase.google.com/).
@@ -144,7 +144,7 @@ The json file you download should look like this:
   "auth_uri": ,
   "token_uri": "https://oauth2.googleapis.com/token",
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40midterm-8196b.iam.gserviceaccount.com",
+  "client_x509_cert_url":,
   "universe_domain":
 }
 ```
