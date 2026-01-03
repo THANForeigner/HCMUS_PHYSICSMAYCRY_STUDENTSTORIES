@@ -90,17 +90,58 @@ You need a free Ngrok account to expose the Colab server to the internet.
    * Click **Enable**.
 ### Running the Server
 
-1. **Open the Colab Notebook**
-    - Access the server code here: [Google Colab](https://colab.research.google.com/drive/1pmE5y1WtK-zsrIINoejdq15co_tSb90r?usp=sharing)
+### 1. Open the Colab Notebook
+* **Access the server code here:** [Google Colab](https://colab.research.google.com/drive/1pmE5y1WtK-zsrIINoejdq15co_tSb90r?usp=sharing)
 
-2. **Configure Secrets**
-    - In the Colab notebook, locate the cells for `NGROK_TOKEN` and `GEMINI_API_KEY`.
-    - Paste your Ngrok token and Gemini API key into the respective fields.
+---
 
-3. **Run the Notebook**
-    - Execute all cells in the notebook to start the server.
+### 2. Configure Secrets
+Go to the Colab notebook and locate the second cell. You will need to add the following credentials:
 
-    ---
+#### A. Ngrok (Tunneling)
+**Used for:** `ngrok_token`
+
+1.  Log in to your [Ngrok Dashboard](https://dashboard.ngrok.com/).
+2.  In the left sidebar, go to **Cloud Edge** > **Endpoints** (or **Your Authtoken** under Getting Started).
+3.  Copy the long alphanumeric string.
+
+#### B. Google AI Studio (Gemini API)
+**Used for:** `gemini_api_key`
+
+1.  Visit [Google AI Studio](https://aistudio.google.com/app/api-keys).
+2.  Click **Create API key** (or copy an existing one).
+3.  Ensure you have the Gemini API enabled for this key.
+
+#### C. Firebase Service Account (Backend & Storage)
+**Used for:** `project_id`, `pri_key_id`, `pri_key`, `c_email`, `c_id`, and `storage_bucket`.
+
+**Step A: Download the Private Key**
+1.  Open the [Firebase Console](https://console.firebase.google.com/).
+2.  Click the **Gear icon** next to "Project Overview" and select **Project settings**.
+3.  Navigate to the **Service accounts** tab.
+4.  Click **Generate new private key**, then click **Generate key** to download the `.json` file.
+
+**Step B: Map JSON values to Secrets**
+Open the downloaded `.json` file in any text editor. Map the values as follows:
+
+| Script Variable | JSON Key Name | Description |
+| :--- | :--- | :--- |
+| `project_id` | `"project_id"` | Your unique Firebase project name. |
+| `pri_key_id` | `"private_key_id"` | The unique ID for your private key. |
+| `pri_key` | `"private_key"` | The full string starting with `-----BEGIN PRIVATE KEY-----`. |
+| `c_email` | `"client_email"` | The service account robot email. |
+| `c_id` | `"client_id"` | The numeric unique client identifier. |
+
+**Step C: Find the Storage Bucket**
+1.  In the Firebase Console, go to **Build** > **Storage**.
+2.  Copy the URL found at the top (e.g., `your-project.firebasestorage.app`).
+3.  **Note:** Do not include the `gs://` prefix.
+
+**Step D: Replace the keys and tokens in cell two to yours keys and tokens**
+
+---
+### 3. Run the Notebook
+* Execute all cells in the notebook to start the server.
 
 ## Client
 
